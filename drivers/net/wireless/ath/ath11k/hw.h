@@ -224,6 +224,7 @@ struct ath11k_hw_params {
         u32 rfkill_cfg;
         u32 rfkill_on_level;
 	bool coex_isolation;
+	bool support_fw_mac_sequence;
 };
 
 struct ath11k_hw_ops {
