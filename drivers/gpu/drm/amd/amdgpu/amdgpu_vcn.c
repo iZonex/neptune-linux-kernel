@@ -152,6 +152,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		amdgpu_ip_version(adev, UVD_HWIP, 0) >= IP_VERSION(4, 0, 0);
 
 	hdr = (const struct common_firmware_header *)adev->vcn.fw[0]->data;
+
 	adev->vcn.fw_version = le32_to_cpu(hdr->ucode_version);
 
 	/* Bit 20-23, it is encode major and non-zero for new naming convention.
