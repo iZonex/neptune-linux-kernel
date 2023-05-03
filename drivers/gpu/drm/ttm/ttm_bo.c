@@ -42,6 +42,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
+#include <linux/cgroup_drm.h>
 #include <linux/dma-resv.h>
 
 #include "ttm_module.h"
@@ -590,17 +591,23 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 			struct ttm_resource_manager *man,
 			const struct ttm_place *place,
 			struct ttm_operation_ctx *ctx,
-			struct ww_acquire_ctx *ticket)
+			struct ww_acquire_ctx *ticket,
+			struct drmcgroup_pool_state *limitcss)
 {
 	struct ttm_buffer_object *bo = NULL, *busy_bo = NULL;
 	struct ttm_resource_cursor cursor;
 	struct ttm_resource *res;
 	bool locked = false;
 	int ret;
+	bool try_low = false, hit_low = false;
 
 	spin_lock(&bdev->lru_lock);
+retry:
 	ttm_resource_manager_for_each_res(man, &cursor, res) {
 		bool busy;
+
+		if (limitcss && !drmcs_evict_valuable(limitcss, man->cgdev, man->cgidx, res->css, try_low, &hit_low))
+			continue;
 
 		if (!ttm_bo_evict_swapout_allowable(res->bo, ctx, place,
 						    &locked, &busy)) {
@@ -616,6 +623,11 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 		}
 		if (locked)
 			dma_resv_unlock(res->bo->base.resv);
+	}
+
+	if (!try_low && hit_low) {
+		try_low = true;
+		goto retry;
 	}
 
 	if (!bo) {
@@ -728,6 +740,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 				  struct ttm_resource **mem,
 				  struct ttm_operation_ctx *ctx)
 {
+	struct drmcgroup_pool_state *limitcss = NULL;
 	struct ttm_device *bdev = bo->bdev;
 	struct ttm_resource_manager *man;
 	struct ww_acquire_ctx *ticket;
@@ -736,13 +749,18 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	man = ttm_manager_type(bdev, place->mem_type);
 	ticket = dma_resv_locking_ctx(bo->base.resv);
 	do {
-		ret = ttm_resource_alloc(bo, place, mem);
-		if (likely(!ret))
+		ret = ttm_resource_alloc(bo, place, mem, &limitcss);
+		if (likely(!ret)) {
+			drmcs_pool_put(limitcss);
 			break;
-		if (unlikely(ret != -ENOSPC))
+		}
+		if (unlikely(ret != -ENOSPC && ret != -EAGAIN)) {
+			drmcs_pool_put(limitcss);
 			return ret;
+		}
 		ret = ttm_mem_evict_first(bdev, man, place, ctx,
-					  ticket);
+					  ticket, limitcss);
+		drmcs_pool_put(limitcss);
 		if (unlikely(ret != 0))
 			return ret;
 	} while (1);
@@ -792,8 +810,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			continue;
 
 		type_found = true;
-		ret = ttm_resource_alloc(bo, place, mem);
-		if (ret == -ENOSPC)
+		ret = ttm_resource_alloc(bo, place, mem, NULL);
+		if (ret)
 			continue;
 		if (unlikely(ret))
 			goto error;
@@ -1176,7 +1194,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 
 		memset(&hop, 0, sizeof(hop));
 		place.mem_type = TTM_PL_SYSTEM;
-		ret = ttm_resource_alloc(bo, &place, &evict_mem);
+		ret = ttm_resource_alloc(bo, &place, &evict_mem, NULL);
 		if (unlikely(ret))
 			goto out;
 
@@ -1215,7 +1233,9 @@ out:
 	if (locked)
 		dma_resv_unlock(bo->base.resv);
 	ttm_bo_put(bo);
-	return ret == -EBUSY ? -ENOSPC : ret;
+	if (ret == -EAGAIN || ret == -EBUSY)
+		return -ENOSPC;
+	return ret;
 }
 
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
