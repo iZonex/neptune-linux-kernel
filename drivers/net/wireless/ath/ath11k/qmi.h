@@ -518,5 +518,6 @@ void ath11k_qmi_deinit_service(struct ath11k_base *ab);
 int ath11k_qmi_init_service(struct ath11k_base *ab);
 void ath11k_qmi_free_resource(struct ath11k_base *ab);
 int ath11k_qmi_fwreset_from_cold_boot(struct ath11k_base *ab);
+int ath11k_qmi_remote_dump(struct ath11k_base *ab);
 
 #endif
