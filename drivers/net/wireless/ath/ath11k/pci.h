@@ -136,6 +136,7 @@ struct ath11k_pci {
 	u64 dma_mask;
 	struct register_crash_data reg_data;
 	struct ath11k_mhi_fw_crash_data mhi_fw_crash_data;
+	struct work_struct rddm_worker;
 };
 
 static inline struct ath11k_pci *ath11k_pci_priv(struct ath11k_base *ab)

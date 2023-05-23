@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "pcic.h"
 #include "qmi.h"
+#include "coredump.h"
 
 #define ATH11K_PCI_BAR_NUM		0
 #define ATH11K_PCI_DMA_MASK		36
@@ -882,6 +883,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
 	pci_set_drvdata(pdev, ab);
 	spin_lock_init(&ab_pci->window_lock);
+	INIT_WORK(&ab_pci->rddm_worker, ath11k_mhi_pm_rddm_worker);
 
 	/* Set fixed_mem_region to true for platforms support reserved memory
 	 * from DT. If memory is reserved from DT for FW, ath11k driver need not

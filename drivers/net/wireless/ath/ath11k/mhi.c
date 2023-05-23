@@ -325,6 +325,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 				    enum mhi_callback cb)
 {
 	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "notify status reason %s\n",
 		   ath11k_mhi_op_callback_to_str(cb));
@@ -336,7 +337,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 	case MHI_CB_EE_RDDM:
 		ath11k_warn(ab, "firmware crashed: MHI_CB_EE_RDDM\n");
 		if (!(test_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags)))
-			queue_work(ab->workqueue_aux, &ab->reset_work);
+			queue_work(ab->workqueue_aux, &ar_pci->rddm_worker);
 		break;
 	default:
 		break;
