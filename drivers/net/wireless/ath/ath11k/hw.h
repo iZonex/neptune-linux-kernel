@@ -219,6 +219,10 @@ struct ath11k_hw_params {
 	bool tcl_ring_retry;
 	u32 tx_ring_size;
 	bool smp2p_wow_exit;
+	bool wakeup_mhi;
+        u32 rfkill_pin;
+        u32 rfkill_cfg;
+        u32 rfkill_on_level;
 };
 
 struct ath11k_hw_ops {
