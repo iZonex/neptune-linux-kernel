@@ -503,6 +503,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_AP),
 		.supports_monitor = false,
+		.full_monitor_mode = false,
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
