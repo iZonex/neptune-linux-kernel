@@ -223,6 +223,7 @@ struct ath11k_hw_params {
         u32 rfkill_pin;
         u32 rfkill_cfg;
         u32 rfkill_on_level;
+	bool coex_isolation;
 };
 
 struct ath11k_hw_ops {
