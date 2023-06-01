@@ -792,13 +792,30 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		}
 
 		pci_ops = &ath11k_pci_ops_qca6390;
+		ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
+
 		break;
 	case QCN9074_DEVICE_ID:
 		pci_ops = &ath11k_pci_ops_qcn9074;
+		ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
 		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;
 	case WCN6855_DEVICE_ID:
 		ab->id.bdf_search = ATH11K_BDF_SEARCH_BUS_AND_BOARD;
+		pci_ops = &ath11k_pci_ops_qca6390;
+		ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
 					   &soc_hw_version_minor);
 		switch (soc_hw_version_major) {
@@ -835,18 +852,11 @@ unsupported_wcn6855_soc:
 			goto err_pci_free_region;
 		}
 
-		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
 			pci_dev->device);
 		ret = -EOPNOTSUPP;
-		goto err_pci_free_region;
-	}
-
-	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
-	if (ret) {
-		ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
 		goto err_pci_free_region;
 	}
 
