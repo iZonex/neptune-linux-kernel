@@ -4932,6 +4932,7 @@ struct ath11k_targ_cap {
 };
 
 enum wmi_vdev_type {
+	WMI_VDEV_TYPE_UNSPEC =  0,
 	WMI_VDEV_TYPE_AP      = 1,
 	WMI_VDEV_TYPE_STA     = 2,
 	WMI_VDEV_TYPE_IBSS    = 3,
@@ -6570,4 +6571,8 @@ int ath11k_wmi_set_unit_test(struct ath11k *ar, struct unit_test_cmd *unit_test)
 int ath11k_wmi_send_coex_config(struct ath11k *ar,
 				struct wmi_coex_config_params *param);
 
+void ath11k_reg_reset_info(struct cur_regulatory_info *reg_info);
+int ath11k_reg_handle_chan_list(struct ath11k_base *ab,
+				struct cur_regulatory_info *reg_info,
+				enum ieee80211_ap_reg_power power_type);
 #endif
