@@ -1327,7 +1327,7 @@ hdac_bus_unmap:
 	return ret;
 }
 
-int hda_dsp_remove(struct snd_sof_dev *sdev)
+void hda_dsp_remove(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -1380,8 +1380,6 @@ skip_disable_dsp:
 
 	if (!sdev->dspless_mode_selected)
 		iounmap(sdev->bar[HDA_DSP_BAR]);
-
-	return 0;
 }
 
 int hda_dsp_remove_late(struct snd_sof_dev *sdev)
@@ -1389,8 +1387,6 @@ int hda_dsp_remove_late(struct snd_sof_dev *sdev)
 	iounmap(sof_to_bus(sdev)->remap_addr);
 	sof_hda_bus_exit(sdev);
 	hda_codec_i915_exit(sdev);
-
-	return 0;
 }
 
 int hda_power_down_dsp(struct snd_sof_dev *sdev)
