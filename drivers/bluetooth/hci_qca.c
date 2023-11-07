@@ -1691,6 +1691,65 @@ static int qca_power_on(struct hci_dev *hdev)
 	return ret;
 }
 
+
+static int qca_get_data_path_id(struct hci_dev *hdev, __u8 *data_path_id)
+{
+	/* QCA uses 1 as data path id for all the usecases */
+	*data_path_id = 1;
+	return 0;
+}
+
+static int qca_get_codec_config_data(struct hci_dev *hdev,
+				     __u8 link, struct bt_codec *codec,
+				     __u8 *ven_len, __u8 **ven_data)
+{
+	int err = 0;
+
+	if (!ven_data || !ven_len)
+		return -EINVAL;
+
+	*ven_len = 0;
+	*ven_data = NULL;
+
+	if (link != ESCO_LINK) {
+		bt_dev_err(hdev, "Invalid link type(%u)", link);
+		return -EINVAL;
+	}
+
+	/* supports only CVSD and mSBC offload codecs */
+	bt_dev_info(hdev, "codec->id(%u)", codec->id);
+	switch (codec->id) {
+		/*
+		 * CVSD codec with sampling rate 8K
+		 * mSBC codec with sampling rate 16K
+		 */
+	case 0x02:
+	case 0x05:
+		/*
+		 *  Do not need to send HCI_Configure_Data_Path, so return -ENOTSUPP
+		 */
+		err = -ENOTSUPP;
+		break;
+	default:
+		err = -EINVAL;
+		bt_dev_err(hdev, "Invalid codec id(%u)", codec->id);
+		break;
+	}
+	return err;
+}
+
+
+static int qca_configure_sco_offload(struct hci_dev *hdev)
+{
+	/*
+	 * TODO : maybe Send VSC to Query if firmware supports SCO offload
+	 */
+	hdev->get_data_path_id = qca_get_data_path_id;
+	hdev->get_codec_config_data = qca_get_codec_config_data;
+	return 0;
+}
+
+
 static int qca_setup(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
@@ -1796,6 +1855,11 @@ out:
 		goto retry;
 	}
 
+	if (soc_type == QCA_QCA2066)  {
+		bt_dev_warn(hdev, "%s: Support sco offload for QCA_QCA2066", __func__);
+		qca_configure_sco_offload(hdev);
+	}
+
 	/* Setup bdaddr */
 	if (soc_type == QCA_ROME)
 		hu->hdev->set_bdaddr = qca_set_bdaddr_rome;
@@ -1862,6 +1926,7 @@ static const struct qca_device_data qca_soc_data_qca6390 = {
 static const struct qca_device_data qca_soc_data_qca2066 = {
 	.soc_type = QCA_QCA2066,
 	.num_vregs = 0,
+	.capabilities = QCA_CAP_WIDEBAND_SPEECH | QCA_CAP_VALID_LE_STATES,
 };
 
 static const struct qca_device_data qca_soc_data_wcn6750 = {
