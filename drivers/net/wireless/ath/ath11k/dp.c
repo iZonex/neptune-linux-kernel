@@ -254,9 +254,9 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	}
 
 	if (!cached)
-		ring->vaddr_unaligned = ath11k_core_dma_alloc_coherent(ab->dev, ring->size,
+		ring->vaddr_unaligned = dma_alloc_coherent(ab->dev, ring->size,
 							   &ring->paddr_unaligned,
-							   GFP_KERNEL | GFP_DMA32);
+							   GFP_KERNEL);
 
 	if (!ring->vaddr_unaligned)
 		return -ENOMEM;
@@ -527,9 +527,9 @@ static int ath11k_dp_scatter_idle_link_desc_setup(struct ath11k_base *ab,
 		return -EINVAL;
 
 	for (i = 0; i < num_scatter_buf; i++) {
-		slist[i].vaddr = ath11k_core_dma_alloc_coherent(ab->dev,
+		slist[i].vaddr = dma_alloc_coherent(ab->dev,
 						    HAL_WBM_IDLE_SCATTER_BUF_SIZE_MAX,
-						    &slist[i].paddr, GFP_KERNEL | GFP_DMA32);
+						    &slist[i].paddr, GFP_KERNEL);
 		if (!slist[i].vaddr) {
 			ret = -ENOMEM;
 			goto err;
@@ -607,9 +607,9 @@ static int ath11k_dp_link_desc_bank_alloc(struct ath11k_base *ab,
 			desc_sz = last_bank_sz;
 
 		desc_bank[i].vaddr_unaligned =
-					ath11k_core_dma_alloc_coherent(ab->dev, desc_sz,
+					dma_alloc_coherent(ab->dev, desc_sz,
 							   &desc_bank[i].paddr_unaligned,
-							   GFP_KERNEL | GFP_DMA32);
+							   GFP_KERNEL);
 		if (!desc_bank[i].vaddr_unaligned) {
 			ret = -ENOMEM;
 			goto err;
