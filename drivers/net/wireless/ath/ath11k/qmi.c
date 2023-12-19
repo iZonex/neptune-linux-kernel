@@ -2559,9 +2559,9 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 	if (m3_mem->vaddr || m3_mem->size)
 		goto skip_m3_alloc;
 
-	m3_mem->vaddr = ath11k_core_dma_alloc_coherent(ab->dev,
+	m3_mem->vaddr = dma_alloc_coherent(ab->dev,
 					   fw->size, &m3_mem->paddr,
-					   GFP_KERNEL  | GFP_DMA32);
+					   GFP_KERNEL);
 	if (!m3_mem->vaddr) {
 		ath11k_err(ab, "failed to allocate memory for M3 with size %zu\n",
 			   fw->size);
