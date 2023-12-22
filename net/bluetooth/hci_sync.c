@@ -2399,6 +2399,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 	struct bdaddr_list *b, *t;
 	u8 num_entries = 0;
 	bool pend_conn, pend_report;
+	struct hci_conn_params *conn_params;
 	u8 filter_policy;
 	int err;
 
@@ -2444,6 +2445,15 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 		 * remove it from the acceptlist.
 		 */
 		if (!pend_conn && !pend_report) {
+			hci_le_del_accept_list_sync(hdev, &b->bdaddr,
+						    b->bdaddr_type);
+			continue;
+		}
+		
+		conn_params = hci_conn_params_lookup(hdev,&b->bdaddr,b->bdaddr_type);
+		/* During suspend, only wakeable devices can be in acceptlist */
+		if (conn_params && hdev->suspended &&
+		    !(conn_params->flags & HCI_CONN_FLAG_REMOTE_WAKEUP)) {
 			hci_le_del_accept_list_sync(hdev, &b->bdaddr,
 						    b->bdaddr_type);
 			continue;
