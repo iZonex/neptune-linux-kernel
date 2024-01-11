@@ -7514,6 +7514,32 @@ static int ath11k_mac_stop_vdev_early(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static u8 ath11k_mac_get_tpe_count(u8 txpwr_intrprt, u8 txpwr_cnt)
+{
+	switch (txpwr_intrprt) {
+	/* Refer "Table 9-276-Meaning of Maximum Transmit Power Count subfield
+	 * if the Maximum Transmit Power Interpretation subfield is 0 or 2" of
+	 * "IEEE Std 802.11ax 2021".
+	 */
+	case IEEE80211_TPE_LOCAL_EIRP:
+	case IEEE80211_TPE_REG_CLIENT_EIRP:
+		txpwr_cnt = txpwr_cnt <= 3 ? txpwr_cnt : 3;
+		txpwr_cnt = txpwr_cnt + 1;
+		break;
+	/* Refer "Table 9-277-Meaning of Maximum Transmit Power Count subfield
+	 * if Maximum Transmit Power Interpretation subfield is 1 or 3" of
+	 * "IEEE Std 802.11ax 2021".
+	 */
+	case IEEE80211_TPE_LOCAL_EIRP_PSD:
+	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
+		txpwr_cnt = txpwr_cnt <= 4 ? txpwr_cnt : 4;
+		txpwr_cnt = txpwr_cnt ? (BIT(txpwr_cnt - 1)) : 1;
+		break;
+	}
+
+	return txpwr_cnt;
+}
+
 static u8 ath11k_mac_get_num_pwr_levels(struct cfg80211_chan_def *chan_def)
 {
 	if (chan_def->chan->flags & IEEE80211_CHAN_PSD) {
@@ -7933,6 +7959,8 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	    ctx->def.chan->band == NL80211_BAND_6GHZ &&
 	    arvif->vdev_type == WMI_VDEV_TYPE_STA) {
 		arvif->chanctx = *ctx;
+		ath11k_mac_parse_tx_pwr_env(ar, vif, ctx);
+
 		ath11k_mac_parse_tx_pwr_env(ar, vif, ctx);
 	}
 
