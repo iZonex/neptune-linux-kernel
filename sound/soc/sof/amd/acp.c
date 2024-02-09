@@ -278,7 +278,14 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	}
 
 	/* psp_send_cmd only required for vangogh platform (rev - 5) */
-	if (desc->rev == 5) {
+	/*
+	 * FIXME: This causes IPC timeout when trying to load DSP topology
+	 * on the Steam Deck OLED device matching acp_sof_quirk_table above.
+	 * The quirk enables signed firmware support on this particular
+	 * Vangogh compatible device, hence skip IRAM/DRAM size modification
+	 * when signed_fw_image is set.
+	 */
+	if (desc->rev == 5 && !adata->signed_fw_image) {
 		/* Modify IRAM and DRAM size */
 		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
 		if (ret)
