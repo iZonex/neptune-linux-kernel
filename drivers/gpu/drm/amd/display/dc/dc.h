@@ -53,7 +53,7 @@ struct dmub_notification;
 
 #define DC_VER "3.2.265"
 
-#define MAX_SURFACES 3
+#define MAX_SURFACES 6
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
