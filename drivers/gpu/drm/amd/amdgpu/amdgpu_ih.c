@@ -213,7 +213,6 @@ int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 
 restart_ih:
 	count  = AMDGPU_IH_MAX_NUM_IVS;
-	DRM_DEBUG("%s: rptr %d, wptr %d\n", __func__, ih->rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
