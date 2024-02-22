@@ -1514,30 +1514,6 @@ static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 	ath11k_debugfs_pdev_destroy(ab);
 }
 
-static int ath11k_core_config_coex_isolation(struct ath11k_base *ab)
-{
-       struct ath11k *ar = ath11k_ab_to_ar(ab, 0);
-       struct wmi_coex_config_params param;
-
-       memset(&param, 0, sizeof(struct wmi_coex_config_params));
-       param.config_type = WMI_COEX_CONFIG_ANTENNA_ISOLATION;
-       param.config_arg1 = WMI_COEX_ISOLATION_ARG1_DEFAUT;
-
-       return ath11k_wmi_send_coex_config(ar, &param);
-}
-
-static int ath11k_core_config_btc_mode(struct ath11k_base *ab)
-{
-	struct ath11k *ar = ath11k_ab_to_ar(ab, 0);
-	struct wmi_coex_config_params param;
-
-	memset(&param, 0, sizeof(struct wmi_coex_config_params));
-	param.config_type = WMI_COEX_CONFIG_BTC_MODE;
-	param.config_arg1 = WMI_COEX_BTC_MODE_ARG1_DEFAULT;
-
-	return ath11k_wmi_send_coex_config(ar, &param);
-}
-
 static int ath11k_core_start(struct ath11k_base *ab)
 {
 	int ret;
@@ -1632,22 +1608,6 @@ static int ath11k_core_start(struct ath11k_base *ab)
 	if (ret) {
 		ath11k_err(ab, "failed to send htt version request message: %d\n",
 			   ret);
-		goto err_reo_cleanup;
-	}
-
-	if (ab->hw_params.coex_isolation) {
-		ret = ath11k_core_config_coex_isolation(ab);
-		if (ret) {
-			ath11k_err(ab, "failed to set coex isolation: %d\n",
-					ret);
-			goto err_reo_cleanup;
-		}
-	}
-
-	ret = ath11k_core_config_btc_mode(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to set btc mode: %d\n",
-				ret);
 		goto err_reo_cleanup;
 	}
 
