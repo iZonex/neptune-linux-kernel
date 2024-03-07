@@ -1039,6 +1039,8 @@ static void rpa_expired(struct work_struct *work)
 	hci_cmd_sync_queue(hdev, rpa_expired_sync, NULL, NULL);
 }
 
+static int set_discoverable_sync(struct hci_dev *hdev, void *data);
+
 static void discov_off(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
@@ -1057,7 +1059,7 @@ static void discov_off(struct work_struct *work)
 	hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 	hdev->discov_timeout = 0;
 
-	hci_update_discoverable(hdev);
+	hci_cmd_sync_queue(hdev, set_discoverable_sync, NULL, NULL);
 
 	mgmt_new_settings(hdev);
 
@@ -8000,7 +8002,7 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 			hci_dev_set_flag(hdev, HCI_CONFIG);
 			hci_dev_set_flag(hdev, HCI_AUTO_OFF);
 
-			queue_work(hdev->req_workqueue, &hdev->power_on);
+			queue_work(hdev->req_workqueue, &hdev->power_on.work);
 		} else {
 			set_bit(HCI_RAW, &hdev->flags);
 			mgmt_index_added(hdev);
@@ -8056,7 +8058,7 @@ static int set_public_address(struct sock *sk, struct hci_dev *hdev,
 		hci_dev_set_flag(hdev, HCI_CONFIG);
 		hci_dev_set_flag(hdev, HCI_AUTO_OFF);
 
-		queue_work(hdev->req_workqueue, &hdev->power_on);
+		queue_work(hdev->req_workqueue, &hdev->power_on.work);
 	}
 
 unlock:
