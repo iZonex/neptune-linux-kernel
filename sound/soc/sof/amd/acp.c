@@ -734,7 +734,6 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 			sdev->ipc_irq);
 		goto free_smn_dev;
 	}
-
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = acp_sof_scan_sdw_devices(sdev, chip->sdw_acpi_dev_addr);
 	if (ret < 0) {
