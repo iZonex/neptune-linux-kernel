@@ -7624,8 +7624,11 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
 	 * Don't clear that. Also, FW delivers broadcast management frames
 	 * (ex: group privacy action frames in mesh) as encrypted payload.
 	 */
+	if (ieee80211_has_protected(hdr->frame_control))
+		printk("PMF-DBG: *****************mgmt rx frame is protected **************\n");
 	if (ieee80211_has_protected(hdr->frame_control) &&
 	    !is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
+		printk("PMF-DBG: ***************** mgmt rx protected unicast frame **************\n");
 		status->flag |= RX_FLAG_DECRYPTED;
 
 		if (!ieee80211_is_robust_mgmt_frame(skb)) {
@@ -7633,6 +7636,7 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
 					RX_FLAG_MMIC_STRIPPED;
 			hdr->frame_control = __cpu_to_le16(fc &
 					     ~IEEE80211_FCTL_PROTECTED);
+			printk("PMF-DBG: *****************mgmt rx clear protected bit **************\n");
 		}
 	}
 
@@ -7640,14 +7644,17 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
 		ath11k_mac_handle_beacon(ar, skb);
 
 	ath11k_dbg(ab, ATH11K_DBG_MGMT,
-		   "event mgmt rx skb %pK len %d ftype %02x stype %02x\n",
+		   "event mgmt rx skb %pK len %d ftype %02x stype %02x fc 0x%lx, sn %u\n",
 		   skb, skb->len,
-		   fc & IEEE80211_FCTL_FTYPE, fc & IEEE80211_FCTL_STYPE);
+		   fc & IEEE80211_FCTL_FTYPE, fc & IEEE80211_FCTL_STYPE, fc, (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4);
 
 	ath11k_dbg(ab, ATH11K_DBG_MGMT,
-		   "event mgmt rx freq %d band %d snr %d, rate_idx %d\n",
+		   "event mgmt rx freq %d band %d snr %d, rate_idx %d, flag 0x%lx\n",
 		   status->freq, status->band, status->signal,
-		   status->rate_idx);
+		   status->rate_idx, status->flag);
+
+	ath11k_dbg_dump(ab, ATH11K_DBG_DATA, NULL, "mgmt rx msdu: ", skb->data,
+			skb->len);
 
 	ieee80211_rx_ni(ar->hw, skb);
 

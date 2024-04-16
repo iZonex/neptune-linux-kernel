@@ -5771,6 +5771,7 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 	dma_addr_t paddr;
 	int buf_id;
 	int ret;
+	u16 fc;
 
 	ATH11K_SKB_CB(skb)->ar = ar;
 
@@ -5794,6 +5795,19 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 			skb_put(skb, IEEE80211_CCMP_MIC_LEN);
 		}
 	}
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = le16_to_cpu(hdr->frame_control);
+	if (ieee80211_has_protected(hdr->frame_control))
+		printk("PMF-DBG: *****************mgmt tx frame is protected **************\n");
+
+	ath11k_dbg(ab, ATH11K_DBG_MGMT,
+		   "event mgmt tx skb %pK len %d ftype %02x stype %02x fc 0x%lx, sn %u\n",
+		   skb, skb->len,
+		   fc & IEEE80211_FCTL_FTYPE, fc & IEEE80211_FCTL_STYPE, fc, (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4);
+
+	ath11k_dbg_dump(ab, ATH11K_DBG_DATA, NULL, "mgmt tx msdu: ", skb->data,
+			skb->len);
 
 	paddr = dma_map_single(ab->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ab->dev, paddr)) {
