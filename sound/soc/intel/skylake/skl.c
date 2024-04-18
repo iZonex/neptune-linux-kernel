@@ -736,6 +736,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 		return PTR_ERR(codec);
 
 	hda_codec->codec = codec;
+	hda_codec->dev_index = addr;
 	dev_set_drvdata(&codec->core.dev, hda_codec);
 
 	/* use legacy bus only for HDA codecs, idisp uses ext bus */
@@ -791,7 +792,7 @@ static int skl_i915_init(struct hdac_bus *bus)
 	 * The HDMI codec is in GPU so we need to ensure that it is powered
 	 * up and ready for probe
 	 */
-	err = snd_hdac_i915_init(bus);
+	err = snd_hdac_i915_init(bus, true);
 	if (err < 0)
 		return err;
 
