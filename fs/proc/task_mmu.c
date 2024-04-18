@@ -1299,6 +1299,8 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 		type = CLEAR_REFS_SOFT_DIRTY;
 		start = *(unsigned long *)(buffer + 1);
 		end = *(unsigned long *)(buffer + 1 + 8);
+		if ((start & ~PAGE_MASK) || (end & ~PAGE_MASK))
+			return -EINVAL;
 	}
 	else
 	{
