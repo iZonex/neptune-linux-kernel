@@ -2536,6 +2536,7 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 	struct bdaddr_list *b, *t;
 	u8 num_entries = 0;
 	bool pend_conn, pend_report;
+	struct hci_conn_params *conn_params;
 	u8 filter_policy;
 	size_t i, n;
 	int err;
@@ -2583,6 +2584,15 @@ static u8 hci_update_accept_list_sync(struct hci_dev *hdev)
 		 * remove it from the acceptlist.
 		 */
 		if (!pend_conn && !pend_report) {
+			hci_le_del_accept_list_sync(hdev, &b->bdaddr,
+						    b->bdaddr_type);
+			continue;
+		}
+
+		/* During suspend, only wakeable devices can be in acceptlist */
+		conn_params = hci_conn_params_lookup(hdev,&b->bdaddr,b->bdaddr_type);
+		if (conn_params && hdev->suspended &&
+		    !(conn_params->flags & HCI_CONN_FLAG_REMOTE_WAKEUP)) {
 			hci_le_del_accept_list_sync(hdev, &b->bdaddr,
 						    b->bdaddr_type);
 			continue;
@@ -3824,12 +3834,14 @@ static int hci_set_event_mask_sync(struct hci_dev *hdev)
 	if (lmp_bredr_capable(hdev)) {
 		events[4] |= 0x01; /* Flow Specification Complete */
 
-		/* Don't set Disconnect Complete when suspended as that
-		 * would wakeup the host when disconnecting due to
+		/* Don't set Disconnect Complete and mode change when suspended
+		 * as that would wakeup the host when disconnecting due to
 		 * suspend.
 		 */
-		if (hdev->suspended)
+		if (hdev->suspended){
 			events[0] &= 0xef;
+			events[2] &= 0xf7;
+		}
 	} else {
 		/* Use a different default for LE-only devices */
 		memset(events, 0, sizeof(events));
@@ -5845,7 +5857,7 @@ int hci_suspend_sync(struct hci_dev *hdev)
 
 	if (hci_conn_count(hdev)) {
 		/* Soft disconnect everything (power off) */
-		err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
+		err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_USER_TERM);
 		if (err) {
 			/* Set state to BT_RUNNING so resume doesn't notify */
 			hdev->suspend_state = BT_RUNNING;
