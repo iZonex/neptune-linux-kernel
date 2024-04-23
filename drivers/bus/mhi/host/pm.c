@@ -3,7 +3,7 @@
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  */
-
+#define DEBUG
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-direction.h>
@@ -848,7 +848,7 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	enum mhi_pm_state new_state;
 	int ret;
-
+printk("MHI entering %s\n", __func__);
 	if (mhi_cntrl->pm_state == MHI_PM_DISABLE)
 		return -EINVAL;
 
@@ -926,10 +926,12 @@ int mhi_pm_suspend(struct mhi_controller *mhi_cntrl)
 		mutex_unlock(&itr->mutex);
 	}
 
+printk("MHI done %s OK\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mhi_pm_suspend);
 
+void eugen_recovery(struct mhi_controller *mhi_cntrl);
 static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 {
 	struct mhi_chan *itr, *tmp;
@@ -940,6 +942,9 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 	dev_dbg(dev, "Entered with PM state: %s, MHI state: %s\n",
 		to_mhi_pm_state_str(mhi_cntrl->pm_state),
 		mhi_state_str(mhi_cntrl->dev_state));
+//mhi_sync_power_up(mhi_cntrl);
+
+//eugen_recovery(mhi_cntrl);
 
 	if (mhi_cntrl->pm_state == MHI_PM_DISABLE)
 		return 0;
@@ -954,6 +959,7 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 			return -EINVAL;
 	}
 
+
 	/* Notify clients about exiting LPM */
 	list_for_each_entry_safe(itr, tmp, &mhi_cntrl->lpm_chans, node) {
 		mutex_lock(&itr->mutex);
@@ -961,7 +967,13 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 			mhi_notify(itr->mhi_dev, MHI_CB_LPM_EXIT);
 		mutex_unlock(&itr->mutex);
 	}
-
+#if 0
+	if (mhi_get_mhi_state(mhi_cntrl) == MHI_STATE_RESET) {
+printk("MHI: resuming from reset.\n");
+ret = mhi_sync_power_up(mhi_cntrl, true);
+printk("MHI: powered up with ret = %d\n", ret);
+} else {
+#endif
 	write_lock_irq(&mhi_cntrl->pm_lock);
 	cur_state = mhi_tryset_pm_state(mhi_cntrl, MHI_PM_M3_EXIT);
 	if (cur_state != MHI_PM_M3_EXIT) {
@@ -990,7 +1002,17 @@ static int __mhi_pm_resume(struct mhi_controller *mhi_cntrl, bool force)
 			to_mhi_pm_state_str(mhi_cntrl->pm_state));
 		return -EIO;
 	}
-
+#if 0
+}
+ if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state) || mhi_cntrl->pm_state != MHI_PM_STATE_M0) {
+	
+		dev_err(dev,
+			"CUC in error ? %s , Did not enter M0 state, MHI state: %s, PM state: %s\n",
+			MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state) ? "yes": "no",
+			mhi_state_str(mhi_cntrl->dev_state),
+			to_mhi_pm_state_str(mhi_cntrl->pm_state));
+}
+#endif
 	return 0;
 }
 
@@ -1096,7 +1118,7 @@ static void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl,
 	spin_unlock_irqrestore(&mhi_cntrl->wlock, flags);
 }
 
-int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
+int mhi_async_power_up(struct mhi_controller *mhi_cntrl, bool resuming)
 {
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
 	enum mhi_state state;
@@ -1158,6 +1180,12 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 	}
 
 	/* IRQs have been requested during probe, so we just need to enable them. */
+
+WARN_ON(resuming);
+if (!resuming)
+ {
+
+printk("MHI: enabling all irqs !\n");
 	enable_irq(mhi_cntrl->irq[0]);
 
 	for (i = 0; i < mhi_cntrl->total_ev_rings; i++, mhi_event++) {
@@ -1166,7 +1194,7 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 		enable_irq(mhi_cntrl->irq[mhi_event->irq]);
 	}
-
+}
 	/* Transition to next state */
 	next_state = MHI_IN_PBL(current_ee) ?
 		DEV_ST_TRANSITION_PBL : DEV_ST_TRANSITION_READY;
@@ -1250,9 +1278,9 @@ void mhi_power_down_keep_dev(struct mhi_controller *mhi_cntrl,
 }
 EXPORT_SYMBOL_GPL(mhi_power_down_keep_dev);
 
-int mhi_sync_power_up(struct mhi_controller *mhi_cntrl)
+int mhi_sync_power_up(struct mhi_controller *mhi_cntrl, bool resuming)
 {
-	int ret = mhi_async_power_up(mhi_cntrl);
+	int ret = mhi_async_power_up(mhi_cntrl, resuming);
 	u32 timeout_ms;
 
 	if (ret)

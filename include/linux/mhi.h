@@ -639,14 +639,14 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl);
  * mhi_async_power_up - Start MHI power up sequence
  * @mhi_cntrl: MHI controller
  */
-int mhi_async_power_up(struct mhi_controller *mhi_cntrl);
+int mhi_async_power_up(struct mhi_controller *mhi_cntrl, bool resuming);
 
 /**
  * mhi_sync_power_up - Start MHI power up sequence and wait till the device
  *                     enters valid EE state
  * @mhi_cntrl: MHI controller
  */
-int mhi_sync_power_up(struct mhi_controller *mhi_cntrl);
+int mhi_sync_power_up(struct mhi_controller *mhi_cntrl, bool resuming);
 
 /**
  * mhi_power_down - Power down the MHI device and also destroy the

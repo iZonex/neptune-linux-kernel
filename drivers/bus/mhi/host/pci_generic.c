@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2020 Linaro Ltd <loic.poulain@linaro.org>
  */
-
+#define DEBUG
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mhi.h>
@@ -26,7 +26,7 @@
 /* PCI VID definitions */
 #define PCI_VENDOR_ID_THALES	0x1269
 #define PCI_VENDOR_ID_QUECTEL	0x1eac
-
+static int cuculet=0;
 /**
  * struct mhi_pci_dev_info - MHI PCI device specific information
  * @config: MHI controller configuration
@@ -795,11 +795,19 @@ static void mhi_pci_runtime_put(struct mhi_controller *mhi_cntrl)
 	pm_runtime_put(mhi_cntrl->cntrl_dev);
 }
 
+void eugen_recovery(struct mhi_controller *mhi_cntrl);
+static struct mhi_pci_device *mhi_pdev;
 static void mhi_pci_recovery_work(struct work_struct *work)
 {
-	struct mhi_pci_device *mhi_pdev = container_of(work, struct mhi_pci_device,
+	mhi_pdev = container_of(work, struct mhi_pci_device,
 						       recovery_work);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
+ eugen_recovery(mhi_cntrl);
+}
+
+
+void eugen_recovery(struct mhi_controller *mhi_cntrl)
+{
 	struct pci_dev *pdev = to_pci_dev(mhi_cntrl->cntrl_dev);
 	int err;
 
@@ -825,12 +833,12 @@ static void mhi_pci_recovery_work(struct work_struct *work)
 	if (err)
 		goto err_try_reset;
 
-	err = mhi_sync_power_up(mhi_cntrl);
+	err = mhi_sync_power_up(mhi_cntrl, false);
 	if (err)
 		goto err_unprepare;
 
 	dev_dbg(&pdev->dev, "Recovery completed\n");
-
+cuculet = 1;
 	set_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status);
 	mod_timer(&mhi_pdev->health_check_timer, jiffies + HEALTH_CHECK_PERIOD);
 	return;
@@ -841,6 +849,10 @@ err_try_reset:
 	if (pci_reset_function(pdev))
 		dev_err(&pdev->dev, "Recovery failed\n");
 }
+
+EXPORT_SYMBOL_GPL(eugen_recovery);
+
+
 
 static void health_check(struct timer_list *t)
 {
@@ -929,7 +941,7 @@ static int mhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_unregister;
 	}
 
-	err = mhi_sync_power_up(mhi_cntrl);
+	err = mhi_sync_power_up(mhi_cntrl, false);
 	if (err) {
 		dev_err(&pdev->dev, "failed to power up MHI controller\n");
 		goto err_unprepare;
@@ -1011,7 +1023,7 @@ static void mhi_pci_reset_done(struct pci_dev *pdev)
 	struct mhi_pci_device *mhi_pdev = pci_get_drvdata(pdev);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
 	int err;
-
+printk(" MHI: %s\n", __func__);
 	/* Restore initial known working PCI state */
 	pci_load_saved_state(pdev, mhi_pdev->pci_state);
 	pci_restore_state(pdev);
@@ -1028,7 +1040,7 @@ static void mhi_pci_reset_done(struct pci_dev *pdev)
 		return;
 	}
 
-	err = mhi_sync_power_up(mhi_cntrl);
+	err = mhi_sync_power_up(mhi_cntrl, false);
 	if (err) {
 		dev_err(&pdev->dev, "failed to power up MHI controller\n");
 		mhi_unprepare_after_power_down(mhi_cntrl);
@@ -1167,7 +1179,8 @@ err_recovery:
 	 */
 	queue_work(system_long_wq, &mhi_pdev->recovery_work);
 	pm_runtime_mark_last_busy(dev);
-
+printk("MHI Queued recovery work !\n");
+while(cuculet==0) msleep(2);
 	return 0;
 }
 

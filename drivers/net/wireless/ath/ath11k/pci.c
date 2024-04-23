@@ -3,7 +3,7 @@
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-
+#define DEBUG
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
@@ -1005,7 +1005,7 @@ static __maybe_unused int ath11k_pci_pm_suspend(struct device *dev)
 {
 	struct ath11k_base *ab = dev_get_drvdata(dev);
 	int ret;
-
+printk("ATH MHI %s\n",__func__);
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci suspend as qmi is not initialised\n");
 		return 0;
@@ -1023,6 +1023,7 @@ static __maybe_unused int ath11k_pci_pm_resume(struct device *dev)
 	struct ath11k_base *ab = dev_get_drvdata(dev);
 	int ret;
 
+printk("ATH MHI %s\n",__func__);
 	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot skipping pci resume as qmi is not initialised\n");
 		return 0;

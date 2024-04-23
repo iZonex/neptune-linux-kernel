@@ -489,7 +489,7 @@ int ath11k_mhi_start(struct ath11k_pci *ab_pci)
 		return ret;
 	}
 
-	ret = mhi_sync_power_up(ab_pci->mhi_ctrl);
+	ret = mhi_sync_power_up(ab_pci->mhi_ctrl, false);
 	if (ret) {
 		ath11k_warn(ab, "failed to power up mhi: %d", ret);
 		return ret;
@@ -508,13 +508,13 @@ int ath11k_mhi_suspend(struct ath11k_pci *ab_pci)
 {
 	struct ath11k_base *ab = ab_pci->ab;
 	int ret;
-
 	ret = mhi_pm_suspend(ab_pci->mhi_ctrl);
 	if (ret) {
 		ath11k_warn(ab, "failed to suspend mhi: %d", ret);
 		return ret;
 	}
 
+ath11k_mhi_stop(ab_pci);
 	return 0;
 }
 
@@ -527,11 +527,14 @@ int ath11k_mhi_resume(struct ath11k_pci *ab_pci)
 	 * are not in M3 state but they are functional. So just ignore
 	 * the MHI state while resuming.
 	 */
+printk("ATH11 forcing MHI resume !\n");
 	ret = mhi_pm_resume_force(ab_pci->mhi_ctrl);
 	if (ret) {
 		ath11k_warn(ab, "failed to resume mhi: %d", ret);
-		return ret;
+//		return ret;
 	}
+
+ath11k_mhi_start(ab_pci);
 
 	return 0;
 }

@@ -460,7 +460,7 @@ static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	/* If the device is in PBL EE retry power up */
 	if (current_ee == MHI_EE_PBL)
-		ret = mhi_async_power_up(mhi_cntrl);
+		ret = mhi_async_power_up(mhi_cntrl, false);
 	else
 		ret = -EIO;
 
@@ -516,7 +516,7 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 		goto prepare_power_up_fail;
 	}
 
-	ret = mhi_async_power_up(mhi_cntrl);
+	ret = mhi_async_power_up(mhi_cntrl, false);
 	/*
 	 * If EIO is returned it is possible that device is in SBL EE, which is
 	 * undesired. SOC reset the device and try to power up again.
@@ -557,7 +557,7 @@ void qaic_mhi_reset_done(struct mhi_controller *mhi_cntrl)
 	struct pci_dev *pci_dev = container_of(mhi_cntrl->cntrl_dev, struct pci_dev, dev);
 	int ret;
 
-	ret = mhi_async_power_up(mhi_cntrl);
+	ret = mhi_async_power_up(mhi_cntrl, false);
 	if (ret)
 		pci_err(pci_dev, "mhi_async_power_up failed after reset %d\n", ret);
 }
