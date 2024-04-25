@@ -50,7 +50,7 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes1.bin");
 
-
+static int mes_v11_0_hw_init(void *handle);
 static int mes_v11_0_hw_fini(void *handle);
 static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev);
 static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev);
@@ -1167,6 +1167,10 @@ static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
 	if (r)
 		goto failure;
 
+	r = mes_v11_0_hw_init(adev);
+	if (r)
+		goto failure;
+
 	return r;
 
 failure:
@@ -1195,6 +1199,9 @@ static int mes_v11_0_hw_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->mes.ring.sched.ready)
+		return 0;
 
 	if (!adev->enable_mes_kiq) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
