@@ -1,0 +1,42 @@
+6.5/features/backport-asoc-amd:
+    4d3c601ce73090870badff53d9d88e20b1d7e91b ("[NOT-FOR-UPSTREAM] ASoC: amd: acp: Use correct DAI link ID for BT codec")
+6.5/features/backport-cs35l41:
+    bd78db32c34ab9076c41c75dc7dae998239b414f ("ALSA: hda: cs35l41: Consistently use dev_err_probe()")
+6.5/features/backport-misc:
+    28e9a6e99c076de507d6c9982239f60f5dc68868 ("usb: dwc3: Properly set system wakeup")
+6.5/features/amd-staging-drm-next:
+    bf901afac5d5f36f706a119bb7054da13264f4e7 ("drm/amdkfd: Fix type of 'dbg_flags' in 'struct kfd_process'")
+6.5/features/acpi:
+    93962ea97e940b0a60cc2c8f8867b5f0beff9f68 ("ACPI: utils: Dynamically determine acpi_handle_list size")
+6.5/features/amd-drm-extra:
+    a25590f06bd9942d1d53f5ae27f73f923219ae42 ("drm: fix drm lastclose ignoring closed active fbs")
+6.5/features/ath11k-qca2066:
+    26058f1fcb019fd5693ac29f82c9fd8ebd20ceb0 ("mac80211: don't overwrite NSS calculation")
+6.5/features/backlight-notif:
+    3e2b05d80cc41ba66f9c36a02188e0bb2c249e82 ("drivers: video: backlight: Disable backlight notification events.")
+6.5/features/bt:
+    19df994eb51d0e9d880185e6c884fb6237999aab ("[QUECTEL] Bluetooth: mgmt: Fix receiving MGMT_EV_DEVICE_FLAGS_CHANGED")
+6.5/features/btrfs-temp-fsid:
+    e399383a0dcf4dacb457c46f2e68210865247d74 ("btrfs: disable the seed feature for temp-fsid")
+6.5/features/gpu-reset:
+    5c6db04a3d4e36b35d6c056f0723957df8585f88 ("drm/amdgpu: schedule GPU reset event work function")
+6.5/features/hacks:
+    a50c22a8ffa991e6257a5b78a00e4a980e0d60db ("[WIP] ASoC: max98388: Fix power on when resuming from suspend")
+6.5/features/iio:
+    ad998aa236c74407960dd05979b9662f8e3b3573 ("iio: light: ltrf216a: Return floating point values")
+6.5/features/mm-soft-dirty-file:
+    b3fe9f37107c8a4ff742b0c39d5225992fe634b8 ("mm: Use UFFD_WP to make per-pte soft dirty tracking work reliably.")
+6.5/features/quirks:
+    db0871329a8e9fdb946ec68d5581a3a9ba255c32 ("drm: panel-orientation-quirks: Add quirk for Valve Galileo")
+6.5/features/setup-gitlabci:
+    eac38ade26373a14cf4821a18bc9fb5ee4a50b26 ("gitlab-ci: Drop obsolete DRM_ANALOGIX_ANX7580")
+6.5/features/steamdeck-mfd:
+    a799a26a4097c1809dc9aba47cdc543f1f6ea641 ("mfd: steamdeck: Expose controller board power in sysfs")
+6.5/features/tsc:
+    64f90f6205a1344dd688bec423e62fdfad566a3a ("x86: revert extra time added to check for tsc wraps")
+6.5/features/usb:
+    6a15b681d69c81d9fc11080a8587e1725cde0c74 ("usb: dwc3: Fix "linux,extcon-name"")
+6.5/features/hid:
+    e690cf99087b28377828da8412d38c767d31f5c1 ("Input: xpad - add support for ASUS ROG RAIKIRI")
+6.5/features/amd-color-mgmt:
+    343f857736d9f339aea0cd43a76953cef97aed7e ("HACK: add KConfig to enable driver-specific color mgmt props")
