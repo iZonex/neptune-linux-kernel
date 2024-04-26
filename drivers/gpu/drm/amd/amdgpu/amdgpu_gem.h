@@ -39,7 +39,8 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns);
  * GEM objects.
  */
 void amdgpu_gem_force_release(struct amdgpu_device *adev);
-int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
+int amdgpu_gem_object_create(struct amdgpu_device *adev,
+			     struct amdgpu_fpriv *fpriv, unsigned long size,
 			     int alignment, u32 initial_domain,
 			     u64 flags, enum ttm_bo_type type,
 			     struct dma_resv *resv,

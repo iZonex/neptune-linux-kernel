@@ -46,6 +46,7 @@
 #define to_amdgpu_bo_vm(abo) container_of((abo), struct amdgpu_bo_vm, bo)
 
 struct amdgpu_bo_param {
+	struct ttm_client		*client;
 	unsigned long			size;
 	int				byte_align;
 	u32				bo_ptr_size;
