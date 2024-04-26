@@ -350,6 +350,10 @@ static inline void *ttm_kmap_obj_virtual(struct ttm_bo_kmap_obj *map,
 	return map->virtual;
 }
 
+void ttm_bo_update_usage_stats(struct ttm_buffer_object *bo,
+			       struct ttm_resource *old_res,
+			       struct ttm_resource *new_res);
+
 int ttm_bo_wait_ctx(struct ttm_buffer_object *bo,
 		    struct ttm_operation_ctx *ctx);
 int ttm_bo_validate(struct ttm_buffer_object *bo,

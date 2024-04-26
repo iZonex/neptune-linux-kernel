@@ -1223,3 +1223,22 @@ void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 	ttm_tt_destroy(bo->bdev, bo->ttm);
 	bo->ttm = NULL;
 }
+
+void ttm_bo_update_usage_stats(struct ttm_buffer_object *bo,
+			       struct ttm_resource *old_res,
+			       struct ttm_resource *new_res) {
+
+	if (!bo->owner)
+		return;
+
+	spin_lock(&bo->owner->client_lock);
+
+	if (old_res) {
+		WARN_ON_ONCE(bo->owner->mem_usage[old_res->mem_type] <
+			     bo->base.size);
+		bo->owner->mem_usage[old_res->mem_type] -= bo->base.size;
+	}
+	if (new_res)
+		bo->owner->mem_usage[new_res->mem_type] += bo->base.size;
+	spin_unlock(&bo->owner->client_lock);
+}
