@@ -479,6 +479,7 @@ struct amdgpu_fpriv {
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
+	struct ttm_client       client;
 	/** GPU partition selection */
 	uint32_t		xcp_id;
 };
