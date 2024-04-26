@@ -296,3 +296,10 @@ void ttm_device_clear_dma_mappings(struct ttm_device *bdev)
 	}
 }
 EXPORT_SYMBOL(ttm_device_clear_dma_mappings);
+
+void ttm_client_init(struct ttm_client *client)
+{
+	spin_lock_init(&client->client_lock);
+	memset(client->mem_usage, 0, sizeof(client->mem_usage));
+}
+EXPORT_SYMBOL(ttm_client_init);

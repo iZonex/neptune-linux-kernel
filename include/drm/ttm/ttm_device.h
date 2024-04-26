@@ -268,6 +268,22 @@ struct ttm_device {
 	struct workqueue_struct *wq;
 };
 
+/**
+ * struct ttm_client - Data specific to a TTM client (e.g. an application)
+ */
+struct ttm_client {
+	/**
+	 * @mem_usage: Memory size (in bytes) of resources allocated in each
+	 * mem_type. Protected by client_lock.
+	 */
+	uint64_t mem_usage[TTM_NUM_MEM_TYPES];
+
+	/**
+	 * @client_lock: Protection for client members.
+	 */
+	spinlock_t client_lock;
+};
+
 int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags);
 int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 		       gfp_t gfp_flags);
@@ -293,5 +309,7 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 		    bool use_dma_alloc, bool use_dma32);
 void ttm_device_fini(struct ttm_device *bdev);
 void ttm_device_clear_dma_mappings(struct ttm_device *bdev);
+
+void ttm_client_init(struct ttm_client *client);
 
 #endif
