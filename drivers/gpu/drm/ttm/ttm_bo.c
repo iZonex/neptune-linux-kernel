@@ -929,6 +929,7 @@ EXPORT_SYMBOL(ttm_bo_validate);
  * ttm_bo_init_reserved
  *
  * @bdev: Pointer to a ttm_device struct.
+ * @owner: A pointer to the ttm_client owning this buffer, or NULL.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @type: Requested type of buffer object.
  * @placement: Initial placement for buffer object.
@@ -958,16 +959,18 @@ EXPORT_SYMBOL(ttm_bo_validate);
  * -EINVAL: Invalid placement flags.
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
-int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
-			 enum ttm_bo_type type, struct ttm_placement *placement,
-			 uint32_t alignment, struct ttm_operation_ctx *ctx,
-			 struct sg_table *sg, struct dma_resv *resv,
+int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_client *owner,
+			 struct ttm_buffer_object *bo, enum ttm_bo_type type,
+			 struct ttm_placement *placement, uint32_t alignment,
+			 struct ttm_operation_ctx *ctx, struct sg_table *sg,
+			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
 	int ret;
 
 	kref_init(&bo->kref);
 	bo->bdev = bdev;
+	bo->owner = owner;
 	bo->type = type;
 	bo->page_alignment = alignment;
 	bo->destroy = destroy;
@@ -1019,6 +1022,7 @@ EXPORT_SYMBOL(ttm_bo_init_reserved);
  * ttm_bo_init_validate
  *
  * @bdev: Pointer to a ttm_device struct.
+ * @owner: A pointer to the ttm_client owning this buffer, or NULL.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
  * @type: Requested type of buffer object.
  * @placement: Initial placement for buffer object.
@@ -1051,17 +1055,18 @@ EXPORT_SYMBOL(ttm_bo_init_reserved);
  * -EINVAL: Invalid placement flags.
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
-int ttm_bo_init_validate(struct ttm_device *bdev, struct ttm_buffer_object *bo,
-			 enum ttm_bo_type type, struct ttm_placement *placement,
-			 uint32_t alignment, bool interruptible,
-			 struct sg_table *sg, struct dma_resv *resv,
+int ttm_bo_init_validate(struct ttm_device *bdev, struct ttm_client *owner,
+			 struct ttm_buffer_object *bo, enum ttm_bo_type type,
+			 struct ttm_placement *placement, uint32_t alignment,
+			 bool interruptible, struct sg_table *sg,
+			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
 	struct ttm_operation_ctx ctx = { interruptible, false };
 	int ret;
 
-	ret = ttm_bo_init_reserved(bdev, bo, type, placement, alignment, &ctx,
-				   sg, resv, destroy);
+	ret = ttm_bo_init_reserved(bdev, owner, bo, type, placement, alignment,
+				   &ctx, sg, resv, destroy);
 	if (ret)
 		return ret;
 

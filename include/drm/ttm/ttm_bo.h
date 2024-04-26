@@ -45,6 +45,7 @@ struct iosys_map;
 
 struct ttm_global;
 struct ttm_device;
+struct ttm_client;
 struct ttm_placement;
 struct ttm_place;
 struct ttm_resource;
@@ -75,6 +76,7 @@ enum ttm_bo_type {
  *
  * @base: drm_gem_object superclass data.
  * @bdev: Pointer to the buffer object device structure.
+ * @owner: Pointer to the client structure owning the buffer, or NULL.
  * @type: The bo type.
  * @page_alignment: Page alignment.
  * @destroy: Destruction function. If NULL, kfree is used.
@@ -102,6 +104,7 @@ struct ttm_buffer_object {
 	 * Members constant at init.
 	 */
 	struct ttm_device *bdev;
+	struct ttm_client *owner;
 	enum ttm_bo_type type;
 	uint32_t page_alignment;
 	void (*destroy) (struct ttm_buffer_object *);
@@ -357,15 +360,17 @@ void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
 			  struct ttm_lru_bulk_move *bulk);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
-int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_buffer_object *bo,
-			 enum ttm_bo_type type, struct ttm_placement *placement,
-			 uint32_t alignment, struct ttm_operation_ctx *ctx,
-			 struct sg_table *sg, struct dma_resv *resv,
+int ttm_bo_init_reserved(struct ttm_device *bdev, struct ttm_client *owner,
+			 struct ttm_buffer_object *bo, enum ttm_bo_type type,
+			 struct ttm_placement *placement, uint32_t alignment,
+			 struct ttm_operation_ctx *ctx, struct sg_table *sg,
+			 struct dma_resv *resv,
 			 void (*destroy)(struct ttm_buffer_object *));
-int ttm_bo_init_validate(struct ttm_device *bdev, struct ttm_buffer_object *bo,
-			 enum ttm_bo_type type, struct ttm_placement *placement,
-			 uint32_t alignment, bool interruptible,
-			 struct sg_table *sg, struct dma_resv *resv,
+int ttm_bo_init_validate(struct ttm_device *bdev, struct ttm_client *owner,
+			 struct ttm_buffer_object *bo, enum ttm_bo_type type,
+			 struct ttm_placement *placement, uint32_t alignment,
+			 bool interruptible, struct sg_table *sg,
+			 struct dma_resv *resv,
 			 void (*destroy)(struct ttm_buffer_object *));
 int ttm_bo_kmap(struct ttm_buffer_object *bo, unsigned long start_page,
 		unsigned long num_pages, struct ttm_bo_kmap_obj *map);

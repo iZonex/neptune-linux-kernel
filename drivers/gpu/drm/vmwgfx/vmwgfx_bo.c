@@ -391,7 +391,7 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 	drm_gem_private_object_init(vdev, &vmw_bo->tbo.base, params->size);
 
 	vmw_bo_placement_set(vmw_bo, params->domain, params->busy_domain);
-	ret = ttm_bo_init_reserved(bdev, &vmw_bo->tbo, params->bo_type,
+	ret = ttm_bo_init_reserved(bdev, NULL, &vmw_bo->tbo, params->bo_type,
 				   &vmw_bo->placement, 0, &ctx, NULL,
 				   NULL, destroy);
 	if (unlikely(ret))

@@ -1333,9 +1333,10 @@ int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
 	 * Similarly, in delayed_destroy, we can't call ttm_bo_put()
 	 * until successful initialization.
 	 */
-	ret = ttm_bo_init_reserved(&i915->bdev, i915_gem_to_ttm(obj), bo_type,
-				   &i915_sys_placement, page_size >> PAGE_SHIFT,
-				   &ctx, NULL, NULL, i915_ttm_bo_destroy);
+	ret = ttm_bo_init_reserved(&i915->bdev, NULL, i915_gem_to_ttm(obj),
+				   bo_type, &i915_sys_placement,
+				   page_size >> PAGE_SHIFT, &ctx, NULL, NULL,
+				   i915_ttm_bo_destroy);
 
 	/*
 	 * XXX: The ttm_bo_init_reserved() functions returns -ENOSPC if the size
