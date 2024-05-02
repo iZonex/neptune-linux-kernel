@@ -788,6 +788,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		man = ttm_manager_type(bdev, place->mem_type);
 		if (!man || !ttm_resource_manager_used(man))
 			continue;
+		if (place->move_budget && *place->move_budget <= 0)
+			continue;
 
 		type_found = true;
 		ret = ttm_resource_alloc(bo, place, mem);
@@ -813,6 +815,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 		man = ttm_manager_type(bdev, place->mem_type);
 		if (!man || !ttm_resource_manager_used(man))
+			continue;
+		if (place->move_budget && *place->move_budget <= 0)
 			continue;
 
 		type_found = true;

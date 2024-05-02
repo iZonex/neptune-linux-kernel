@@ -67,10 +67,13 @@
 /**
  * struct ttm_place
  *
- * @fpfn:	first valid page frame number to put the object
- * @lpfn:	last valid page frame number to put the object
- * @mem_type:	One of TTM_PL_* where the resource should be allocated from.
- * @flags:	memory domain and caching flags for the object
+ * @fpfn:	 first valid page frame number to put the object
+ * @lpfn:	 last valid page frame number to put the object
+ * @mem_type:	 One of TTM_PL_* where the resource should be allocated from.
+ * @flags:	 memory domain and caching flags for the object
+ * @move_budget: If not NULL, a budget for how much memory can be moved right
+ * 		 now. Buffers won't be moved to this place if this goes below
+ * 		 zero.
  *
  * Structure indicating a possible place to put an object.
  */
@@ -79,6 +82,7 @@ struct ttm_place {
 	unsigned	lpfn;
 	uint32_t	mem_type;
 	uint32_t	flags;
+	int64_t         *move_budget;
 };
 
 /**
