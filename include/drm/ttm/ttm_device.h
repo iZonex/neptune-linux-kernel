@@ -35,6 +35,8 @@ struct ttm_placement;
 struct ttm_buffer_object;
 struct ttm_operation_ctx;
 
+#define TTM_MAX_MEM_ACCT_ZONES 1
+
 /**
  * struct ttm_global - Buffer object driver global data.
  */
@@ -210,6 +212,21 @@ struct ttm_device_funcs {
 };
 
 /**
+ * struct ttm_mem_acct_zone - Memory accounting zone
+ *
+ * Drivers can use a memory accounting zone to track buffer movement to or from
+ * a specific part of memory (for example, the visible part of VRAM). In
+ * addition to the per-device bytes_moved, buffer movements that affect an
+ * accounting zone will also count towards that zone's bytes_moved.
+ */
+struct ttm_mem_acct_zone {
+	unsigned fpfn;
+	unsigned lpfn;
+	uint32_t mem_type;
+	uint64_t bytes_moved;
+};
+
+/**
  * struct ttm_device - Buffer object driver device-specific data.
  */
 struct ttm_device {
@@ -266,6 +283,22 @@ struct ttm_device {
 	 * @wq: Work queue structure for the delayed delete workqueue.
 	 */
 	struct workqueue_struct *wq;
+
+	/**
+	 * @mem_acct_zones: Memory accounting zones for this device.
+	 */
+	struct ttm_mem_acct_zone mem_acct_zones[TTM_MAX_MEM_ACCT_ZONES];
+
+	/**
+	 * @num_mem_acct_zones: How many valid memory accounting zones there
+	 * are.
+	 */
+	unsigned num_mem_acct_zones;
+
+	/**
+	 * @bytes_moved: Tracks how many bytes were moved across all of memory.
+	 */
+	uint64_t bytes_moved;
 };
 
 /**
@@ -311,5 +344,12 @@ void ttm_device_fini(struct ttm_device *bdev);
 void ttm_device_clear_dma_mappings(struct ttm_device *bdev);
 
 void ttm_client_init(struct ttm_client *client);
+
+void ttm_device_add_mem_acct_zone(struct ttm_device *bdev, uint32_t mem_type,
+				  unsigned fpfn, unsigned lpfn);
+void ttm_device_get_moved_bytes(struct ttm_device *bdev,
+				uint64_t *global_bytes_moved,
+				unsigned mem_acct_zone_count,
+				uint64_t *mem_acct_zones, bool reset);
 
 #endif

@@ -303,3 +303,68 @@ void ttm_client_init(struct ttm_client *client)
 	memset(client->mem_usage, 0, sizeof(client->mem_usage));
 }
 EXPORT_SYMBOL(ttm_client_init);
+
+/**
+ * ttm_device_add_mem_acct_zone - Add a memory accounting zone to a device
+ *
+ * @param bdev The device to add the zone to
+ * @param mem_type The memory type of the zone
+ * @param fpfn First page frame number to track memory movements of
+ * @param lpfn Last page frame number to track memory movements of
+ */
+void ttm_device_add_mem_acct_zone(struct ttm_device *bdev, uint32_t mem_type,
+				  unsigned fpfn, unsigned lpfn)
+{
+	unsigned index;
+
+	spin_lock(&bdev->lru_lock);
+	index = bdev->num_mem_acct_zones;
+
+	BUG_ON(bdev->num_mem_acct_zones >= TTM_MAX_MEM_ACCT_ZONES);
+
+	bdev->mem_acct_zones[index].mem_type = mem_type;
+	bdev->mem_acct_zones[index].fpfn = fpfn;
+	bdev->mem_acct_zones[index].lpfn = lpfn;
+	bdev->mem_acct_zones[index].bytes_moved = 0;
+	++bdev->num_mem_acct_zones;
+	spin_unlock(&bdev->lru_lock);
+
+}
+EXPORT_SYMBOL(ttm_device_add_mem_acct_zone);
+
+/**
+ * ttm_device_get_moved_bytes - Get the number of moved bytes since last reset
+ *
+ * @param bdev Device to get moved bytes of
+ * @param global_bytes_moved If not NULL, pointer to a uint64_t where the number
+ * of moved bytes across all memory will be stored
+ * @param mem_acct_zone_count Number of entries in mem_acct_zones
+ * @param mem_acct_zones If not NULL, pointer to an array of uint64_t where the
+ * number of moved bytes from each memory accounting zone will be stored
+ * @param reset If true, resets counters to zero after reading
+ */
+void ttm_device_get_moved_bytes(struct ttm_device *bdev,
+				uint64_t *global_bytes_moved,
+				unsigned mem_acct_zone_count,
+				uint64_t *mem_acct_zones, bool reset)
+{
+	unsigned i;
+
+	spin_lock(&bdev->lru_lock);
+
+	if (global_bytes_moved) {
+		*global_bytes_moved = bdev->bytes_moved;
+		if (reset)
+			bdev->bytes_moved = 0;
+	}
+
+	for (i = 0; mem_acct_zones && i < mem_acct_zone_count; ++i) {
+		BUG_ON(i >= bdev->num_mem_acct_zones);
+		mem_acct_zones[i] = bdev->mem_acct_zones[i].bytes_moved;
+		if (reset)
+			bdev->mem_acct_zones[i].bytes_moved = 0;
+	}
+
+	spin_unlock(&bdev->lru_lock);
+}
+EXPORT_SYMBOL(ttm_device_get_moved_bytes);

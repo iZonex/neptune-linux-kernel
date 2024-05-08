@@ -1224,6 +1224,47 @@ void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 	bo->ttm = NULL;
 }
 
+/**
+ * ttm_bo_update_move_stats - Update bytes_moved accounting after a move
+ * @param bo The moved buffer object
+ * @param old_res The resource previously assigned to the buffer
+ * @param new_res The resource the buffer was moved to
+ */
+void ttm_bo_update_move_stats(struct ttm_buffer_object *bo,
+			      struct ttm_resource *old_res,
+			      struct ttm_resource *new_res)
+{
+	unsigned i;
+	struct ttm_place zone_place;
+
+	spin_lock(&bo->bdev->lru_lock);
+
+	bo->bdev->bytes_moved += bo->base.size;
+	for (i = 0; i < bo->bdev->num_mem_acct_zones; ++i) {
+		zone_place.fpfn = bo->bdev->mem_acct_zones[i].fpfn;
+		zone_place.lpfn = bo->bdev->mem_acct_zones[i].lpfn;
+		zone_place.mem_type = bo->bdev->mem_acct_zones[i].mem_type;
+
+		if (old_res && ttm_resource_intersects(bo->bdev, old_res,
+						       &zone_place,
+						       bo->base.size)) {
+			bo->bdev->mem_acct_zones[i].bytes_moved +=
+				bo->base.size;
+			continue;
+		}
+		if (new_res && ttm_resource_intersects(bo->bdev, new_res,
+						       &zone_place,
+						       bo->base.size)) {
+			bo->bdev->mem_acct_zones[i].bytes_moved +=
+				bo->base.size;
+			continue;
+		}
+	}
+
+	spin_unlock(&bo->bdev->lru_lock);
+}
+EXPORT_SYMBOL(ttm_bo_update_move_stats);
+
 void ttm_bo_update_usage_stats(struct ttm_buffer_object *bo,
 			       struct ttm_resource *old_res,
 			       struct ttm_resource *new_res) {
