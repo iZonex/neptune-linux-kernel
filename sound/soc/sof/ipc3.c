@@ -309,6 +309,7 @@ static int ipc3_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 			dev_err(sdev->dev,
 				"ipc tx error for %#x (msg/reply size: %d/%zu): %d\n",
 				hdr->cmd, hdr->size, msg->reply_size, ret);
+			WARN(1, "*** DECK DEBUG ***");
 		} else {
 			if (sof_debug_check_flag(SOF_DBG_PRINT_IPC_SUCCESS_LOGS))
 				ipc3_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
@@ -996,7 +997,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 	u32 cmd;
 	int err;
 
-	ipc3_log_header(sdev->dev, "ipc rx", hdr->cmd);
+	// ipc3_log_header(sdev->dev, "ipc rx", hdr->cmd);
 
 	if (hdr->size < sizeof(*hdr) || hdr->size > SOF_IPC_MSG_MAX_SIZE) {
 		dev_err(sdev->dev, "The received message size is invalid: %u\n",
@@ -1049,7 +1050,7 @@ void sof_ipc3_do_rx_work(struct snd_sof_dev *sdev, struct sof_ipc_cmd_hdr *hdr, 
 	/* Notify registered clients */
 	sof_client_ipc_rx_dispatcher(sdev, msg_buf);
 
-	ipc3_log_header(sdev->dev, "ipc rx done", hdr->cmd);
+	// ipc3_log_header(sdev->dev, "ipc rx done", hdr->cmd);
 }
 EXPORT_SYMBOL(sof_ipc3_do_rx_work);
 

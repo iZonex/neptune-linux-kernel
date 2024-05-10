@@ -612,6 +612,8 @@ int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 	if (check_acp_sdw_enable_status(sdev))
 		return acp_dsp_reset(sdev);
 
+	disable_irq(sdev->ipc_irq);
+
 	ret = acp_reset(sdev);
 	if (ret) {
 		dev_err(sdev->dev, "ACP Reset failed\n");
@@ -637,6 +639,8 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 			dev_err(sdev->dev, "ACP Init failed\n");
 			return ret;
 		}
+		enable_irq(sdev->ipc_irq);
+
 		return acp_memory_init(sdev);
 	} else {
 		return acp_dsp_reset(sdev);

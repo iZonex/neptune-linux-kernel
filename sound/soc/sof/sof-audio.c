@@ -49,6 +49,7 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 	int err = 0;
 	int ret;
 
+	dev_dbg(sdev->dev, "** freeing widget %s\n", swidget->widget->name);
 	if (!swidget->private)
 		return 0;
 
@@ -836,6 +837,11 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 	int ret;
 	int err = 0;
 
+	dev_dbg(sdev->dev, "-> stream_free() stream %d dir %d prep=%d free_widgets=%d\n",
+		spcm->pcm.pcm_id, substream->stream,
+		spcm->prepared[substream->stream], free_widget_list);
+	WARN(1, "*** DECK ***");
+
 	if (spcm->prepared[substream->stream]) {
 		/* stop DMA first if needed */
 		if (pcm_ops && pcm_ops->platform_stop_during_hw_free)
@@ -843,6 +849,7 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 
 		/* free PCM in the DSP */
 		if (pcm_ops && pcm_ops->hw_free) {
+			dev_dbg(sdev->dev, "** calling pcm_ops->hw_free()\n");
 			ret = pcm_ops->hw_free(sdev->component, substream);
 			if (ret < 0) {
 				dev_err(sdev->dev, "%s: pcm_ops hw_free failed %d\n",
@@ -874,6 +881,7 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 				err = ret;
 		}
 	}
+	dev_dbg(sdev->dev, "<- stream_free()\n");
 
 	return err;
 }

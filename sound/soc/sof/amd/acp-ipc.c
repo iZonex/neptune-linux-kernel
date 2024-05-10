@@ -76,10 +76,12 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 		count--;
 		if (!count) {
 			dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+			WARN(1, "*** DECK DEBUG ***");
 			return -EINVAL;
 		}
 	}
 
+	dev_info(sdev->dev, "** DECK: enter send_msg (tries=%d)\n", ACP_HW_SEM_RETRY_COUNT - count);
 	acp_mailbox_write(sdev, offset, msg->msg_data, msg->msg_size);
 	acp_ipc_host_msg_set(sdev);
 
@@ -88,11 +90,17 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	/* Unlock or Release HW Semaphore */
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset, 0x0);
+	dev_info(sdev->dev, "** DECK: exit send_msg\n");
 
 	return 0;
 }
 EXPORT_SYMBOL_NS(acp_sof_ipc_send_msg, SND_SOC_SOF_AMD_COMMON);
 
+// CC: this is based on original hda_dsp_ipc_get_reply()
+// see also snd_sof_ipc_get_reply(), sof_ipc3_get_reply()
+// and snd_sof_ipc_process_reply()
+// -> sync with latest core changes, e.g. drop superfluos reply
+// and use msg->reply_data
 static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
@@ -150,6 +158,8 @@ static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	}
 out:
 	msg->reply_error = ret;
+	if (ret)
+		dev_err(sdev->dev, "*** DECK: reply_error=%d\n", ret);
 }
 
 irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
@@ -164,6 +174,10 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	bool ipc_irq = false;
 	int dsp_msg, dsp_ack;
 	unsigned int status;
+
+	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
+		dev_err(sdev->dev, "** IPC reply before FW_READY (firstboot=%d)\n", sdev->first_boot);
+	}
 
 	if (sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
 		acp_mailbox_read(sdev, sdev->dsp_box.offset, &status, sizeof(status));

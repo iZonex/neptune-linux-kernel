@@ -135,6 +135,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
+	dev_dbg(component->dev, "-> pcm_hw_params\n");
 	spcm = snd_sof_find_spcm_dai(component, rtd);
 	if (!spcm)
 		return -EINVAL;
@@ -187,6 +188,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
+	dev_dbg(component->dev, "<- pcm_hw_params\n");
 
 	return 0;
 }
