@@ -594,7 +594,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	msg.primary &= ~SOF_IPC4_MSG_TYPE_MASK;
 	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY);
 	msg.primary |= SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(fw_lib->id);
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 
 	/* Stop the DMA channel */
 	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);

@@ -40,7 +40,7 @@ static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state
 	msg.data_size = ipc_size;
 	msg.data_ptr = trigger_list;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, ipc_size);
+	return sof_ipc_tx_message(sdev->ipc, &msg, ipc_size, NULL, 0);
 }
 
 int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 state)
@@ -58,7 +58,7 @@ int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 s
 
 	msg.primary = primary;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	return sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 }
 EXPORT_SYMBOL(sof_ipc4_set_pipeline_state);
 
@@ -300,7 +300,7 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 	if (enable)
 		msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_ENABLE_MASK;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	return sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 }
 
 static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
