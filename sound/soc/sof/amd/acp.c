@@ -47,14 +47,12 @@ static int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data)
 	return 0;
 }
 
-static int smn_read(struct pci_dev *dev, u32 smn_addr)
+static int smn_read(struct pci_dev *dev, u32 smn_addr, u32 *data)
 {
-	u32 data = 0;
-
 	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_read_config_dword(dev, 0x64, &data);
+	pci_read_config_dword(dev, 0x64, data);
 
-	return data;
+	return 0;
 }
 
 static void init_dma_descriptor(struct acp_dev_data *adata)
@@ -171,13 +169,15 @@ int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
 static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	int ret;
+	int timeout;
 	u32 data;
 
-	ret = read_poll_timeout(smn_read, data, data & MBOX_READY_MASK, MBOX_DELAY_US,
-				ACP_PSP_TIMEOUT_US, false, adata->smn_dev, MP0_C2PMSG_114_REG);
-	if (!ret)
-		return 0;
+	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
+		msleep(20);
+		smn_read(adata->smn_dev, MP0_C2PMSG_114_REG, &data);
+		if (data & MBOX_READY_MASK)
+			return 0;
+	}
 
 	dev_err(sdev->dev, "PSP error status %x\n", data & MBOX_STATUS_MASK);
 
@@ -196,19 +196,23 @@ static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	int ret;
+	int ret, timeout;
 	u32 data;
 
 	if (!cmd)
 		return -EINVAL;
 
 	/* Get a non-zero Doorbell value from PSP */
-	ret = read_poll_timeout(smn_read, data, data, MBOX_DELAY_US, ACP_PSP_TIMEOUT_US, false,
-				adata->smn_dev, MP0_C2PMSG_73_REG);
+	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
+		msleep(MBOX_DELAY);
+		smn_read(adata->smn_dev, MP0_C2PMSG_73_REG, &data);
+		if (data)
+			break;
+	}
 
-	if (ret) {
+	if (!timeout) {
 		dev_err(sdev->dev, "Failed to get Doorbell from MBOX %x\n", MP0_C2PMSG_73_REG);
-		return ret;
+		return -EINVAL;
 	}
 
 	/* Check if PSP is ready for new command */
