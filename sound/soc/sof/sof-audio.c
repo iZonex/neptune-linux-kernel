@@ -390,11 +390,13 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 		if (!p->walking && p->sink->dobj.private && widget->dobj.private) {
 			p->walking = true;
 			if (WIDGET_IS_AIF_OR_DAI(widget->id)) {
+				dev_dbg(sdev->dev, "BOB_DEBUG: %s(): widget(%s)->id=%d\n", __func__, widget->name, widget->id);
 				ret = sof_widget_setup(sdev, widget->dobj.private);
 				if (ret < 0)
 					goto out;
 			}
 
+			dev_dbg(sdev->dev, "BOB_DEBUG: %s(): sink(%s)->id=%d\n", __func__, p->sink->name, p->sink->id);
 			ret = sof_widget_setup(sdev, p->sink->dobj.private);
 			if (ret < 0) {
 				if (WIDGET_IS_AIF_OR_DAI(widget->id))

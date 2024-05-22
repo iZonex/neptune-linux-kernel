@@ -179,8 +179,10 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	if (pcm_ops->hw_params) {
 		ret = pcm_ops->hw_params(component, substream, params, &platform_params);
-		if (ret < 0)
+		if (ret < 0) {
+				pr_info("BOB_DEBUG: %s(): %ps->hw_params=%ps\n", __func__, pcm_ops, pcm_ops->hw_params);
 			return ret;
+		}
 	}
 
 	spcm->prepared[substream->stream] = true;
