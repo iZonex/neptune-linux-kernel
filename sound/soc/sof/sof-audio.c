@@ -559,6 +559,7 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 	if (swidget) {
 		int i;
 
+		dev_dbg(sdev->dev, "BOB_DEBUG: %s(): widget(%s)->id=%d\n", __func__, widget->name, widget->id);
 		ret = sof_widget_setup(sdev, widget->dobj.private);
 		if (ret < 0)
 			return ret;

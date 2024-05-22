@@ -37,6 +37,59 @@ static int sof_ipc3_pcm_hw_free(struct snd_soc_component *component,
 	return sof_ipc_tx_message(sdev->ipc, &stream, sizeof(stream), &reply, sizeof(reply));
 }
 
+static void snprintf_u16_array(char *str, size_t len,
+			       const uint16_t *array, int nelem)
+{
+	int i;
+
+	str[0] = '\0';
+
+	for (i = 0; i < nelem; i++) {
+		int r = snprintf(str, len, "%s%u", i ? ", " : "", array[i]);
+		if (r >= len)
+			return;
+		str += r;
+		len -= r;
+	}
+}
+
+static void debug_pcm(struct device *dev, struct sof_ipc_pcm_params *pcm)
+{
+	char tmp[128];
+
+	dev_dbg(dev, "BOB_DEBUG: pcm={\n");
+	dev_dbg(dev, "BOB_DEBUG:   hdr={ .size=%u, .cmd=0x%x }\n", pcm->hdr.size, pcm->hdr.cmd);
+	dev_dbg(dev, "BOB_DEBUG:   comp_id=%u\n", pcm->comp_id);
+	dev_dbg(dev, "BOB_DEBUG:   reserved={%u,%u}\n", pcm->reserved[0], pcm->reserved[1]);
+	dev_dbg(dev, "BOB_DEBUG:   params={\n");
+	dev_dbg(dev, "BOB_DEBUG:     hdr={ .size=%u }\n", pcm->params.hdr.size);
+	dev_dbg(dev, "BOB_DEBUG:     buffer={\n");
+	dev_dbg(dev, "BOB_DEBUG:       hdr={ .size=%u }\n", pcm->params.buffer.hdr.size);
+	dev_dbg(dev, "BOB_DEBUG:       phy_addr=0x%x\n", pcm->params.buffer.phy_addr);
+	dev_dbg(dev, "BOB_DEBUG:       pages=%u\n", pcm->params.buffer.pages);
+	dev_dbg(dev, "BOB_DEBUG:       size=%u\n", pcm->params.buffer.size);
+	dev_dbg(dev, "BOB_DEBUG:       reserved={ %u, %u, %u }\n", pcm->params.buffer.reserved[0], pcm->params.buffer.reserved[1], pcm->params.buffer.reserved[2]);
+	dev_dbg(dev, "BOB_DEBUG:     }");
+	dev_dbg(dev, "BOB_DEBUG:     direction=%u\n", pcm->params.direction);
+	dev_dbg(dev, "BOB_DEBUG:     frame_fmt=%u\n", pcm->params.frame_fmt);
+	dev_dbg(dev, "BOB_DEBUG:     buffer_fmt=%u\n", pcm->params.buffer_fmt);
+	dev_dbg(dev, "BOB_DEBUG:     rate=%u\n", pcm->params.rate);
+	dev_dbg(dev, "BOB_DEBUG:     stream_tag=%u\n", pcm->params.stream_tag);
+	dev_dbg(dev, "BOB_DEBUG:     channels=%u\n", pcm->params.channels);
+	dev_dbg(dev, "BOB_DEBUG:     sample_valid_bytes=%u\n", pcm->params.sample_valid_bytes);
+	dev_dbg(dev, "BOB_DEBUG:     sample_container_bytes=%u\n", pcm->params.sample_container_bytes);
+	dev_dbg(dev, "BOB_DEBUG:     host_period_bytes=%u\n", pcm->params.host_period_bytes);
+	dev_dbg(dev, "BOB_DEBUG:     no_stream_position=%u\n", pcm->params.no_stream_position);
+	dev_dbg(dev, "BOB_DEBUG:     cont_update_posn=%u\n", pcm->params.cont_update_posn);
+	dev_dbg(dev, "BOB_DEBUG:     reserved0=%u\n", pcm->params.reserved0);
+	dev_dbg(dev, "BOB_DEBUG:     ext_data_length=%u\n", pcm->params.ext_data_length);
+	dev_dbg(dev, "BOB_DEBUG:     reserved= { %u, %u}\n", pcm->params.reserved[0], pcm->params.reserved[1]);
+	snprintf_u16_array(tmp, ARRAY_SIZE(tmp), pcm->params.chmap, SOF_IPC_MAX_CHANNELS);
+	dev_dbg(dev, "BOB_DEBUG:     chmap={ %s }", tmp);
+	dev_dbg(dev, "BOB_DEBUG:   }\n");
+	dev_dbg(dev, "BOB_DEBUG: }\n");
+}
+
 static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
@@ -119,6 +172,8 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 		pcm.params.cont_update_posn = 1;
 
 	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
+
+	debug_pcm(component->dev, &pcm);
 
 	/* send hw_params IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, &pcm, sizeof(pcm),

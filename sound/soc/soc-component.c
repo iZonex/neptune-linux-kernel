@@ -1169,8 +1169,10 @@ int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
 		if (component->driver->hw_params) {
 			ret = component->driver->hw_params(component,
 							   substream, params);
-			if (ret < 0)
+			if (ret < 0) {
+				pr_info("BOB_DEBUG: %s(): hw_params=%pS\n", __func__, component->driver->hw_params);
 				return soc_component_ret(component, ret);
+			}
 		}
 		/* mark substream if succeeded */
 		soc_component_mark_push(component, substream, hw_params);
