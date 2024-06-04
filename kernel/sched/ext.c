@@ -20,615 +20,6 @@ enum scx_consts {
 	SCX_CPUPERF_ONE			= SCHED_CAPACITY_SCALE,
 };
 
-enum scx_exit_kind {
-	SCX_EXIT_NONE,
-	SCX_EXIT_DONE,
-
-	SCX_EXIT_UNREG = 64,	/* user-space initiated unregistration */
-	SCX_EXIT_UNREG_BPF,	/* BPF-initiated unregistration */
-	SCX_EXIT_UNREG_KERN,	/* kernel-initiated unregistration */
-	SCX_EXIT_SYSRQ,		/* requested by 'S' sysrq */
-
-	SCX_EXIT_ERROR = 1024,	/* runtime error, error msg contains details */
-	SCX_EXIT_ERROR_BPF,	/* ERROR but triggered through scx_bpf_error() */
-	SCX_EXIT_ERROR_STALL,	/* watchdog detected stalled runnable tasks */
-};
-
-/*
- * An exit code can be specified when exiting with scx_bpf_exit() or
- * scx_ops_exit(), corresponding to exit_kind UNREG_BPF and UNREG_KERN
- * respectively. The codes are 64bit of the format:
- *
- *   Bits: [63  ..  48 47   ..  32 31 .. 0]
- *         [ SYS ACT ] [ SYS RSN ] [ USR  ]
- *
- *   SYS ACT: System-defined exit actions
- *   SYS RSN: System-defined exit reasons
- *   USR    : User-defined exit codes and reasons
- *
- * Using the above, users may communicate intention and context by ORing system
- * actions and/or system reasons with a user-defined exit code.
- */
-enum scx_exit_code {
-	/* Reasons */
-	SCX_ECODE_RSN_HOTPLUG	= 1LLU << 32,
-
-	/* Actions */
-	SCX_ECODE_ACT_RESTART	= 1LLU << 48,
-};
-
-/*
- * scx_exit_info is passed to ops.exit() to describe why the BPF scheduler is
- * being disabled.
- */
-struct scx_exit_info {
-	/* %SCX_EXIT_* - broad category of the exit reason */
-	enum scx_exit_kind	kind;
-
-	/* exit code if gracefully exiting */
-	s64			exit_code;
-
-	/* textual representation of the above */
-	const char		*reason;
-
-	/* backtrace if exiting due to an error */
-	unsigned long		*bt;
-	u32			bt_len;
-
-	/* informational message */
-	char			*msg;
-
-	/* debug dump */
-	char			*dump;
-};
-
-/* sched_ext_ops.flags */
-enum scx_ops_flags {
-	/*
-	 * Keep built-in idle tracking even if ops.update_idle() is implemented.
-	 */
-	SCX_OPS_KEEP_BUILTIN_IDLE = 1LLU << 0,
-
-	/*
-	 * By default, if there are no other task to run on the CPU, ext core
-	 * keeps running the current task even after its slice expires. If this
-	 * flag is specified, such tasks are passed to ops.enqueue() with
-	 * %SCX_ENQ_LAST. See the comment above %SCX_ENQ_LAST for more info.
-	 */
-	SCX_OPS_ENQ_LAST	= 1LLU << 1,
-
-	/*
-	 * An exiting task may schedule after PF_EXITING is set. In such cases,
-	 * bpf_task_from_pid() may not be able to find the task and if the BPF
-	 * scheduler depends on pid lookup for dispatching, the task will be
-	 * lost leading to various issues including RCU grace period stalls.
-	 *
-	 * To mask this problem, by default, unhashed tasks are automatically
-	 * dispatched to the local DSQ on enqueue. If the BPF scheduler doesn't
-	 * depend on pid lookups and wants to handle these tasks directly, the
-	 * following flag can be used.
-	 */
-	SCX_OPS_ENQ_EXITING	= 1LLU << 2,
-
-	/*
-	 * If set, only tasks with policy set to SCHED_EXT are attached to
-	 * sched_ext. If clear, SCHED_NORMAL tasks are also included.
-	 */
-	SCX_OPS_SWITCH_PARTIAL	= 1LLU << 3,
-
-	/*
-	 * CPU cgroup knob enable flags
-	 */
-	SCX_OPS_CGROUP_KNOB_WEIGHT = 1LLU << 16,	/* cpu.weight */
-
-	SCX_OPS_ALL_FLAGS	= SCX_OPS_KEEP_BUILTIN_IDLE |
-				  SCX_OPS_ENQ_LAST |
-				  SCX_OPS_ENQ_EXITING |
-				  SCX_OPS_SWITCH_PARTIAL |
-				  SCX_OPS_CGROUP_KNOB_WEIGHT,
-};
-
-/* argument container for ops.init_task() */
-struct scx_init_task_args {
-	/*
-	 * Set if ops.init_task() is being invoked on the fork path, as opposed
-	 * to the scheduler transition path.
-	 */
-	bool			fork;
-#ifdef CONFIG_EXT_GROUP_SCHED
-	/* the cgroup the task is joining */
-	struct cgroup		*cgroup;
-#endif
-};
-
-/* argument container for ops.exit_task() */
-struct scx_exit_task_args {
-	/* Whether the task exited before running on sched_ext. */
-	bool cancelled;
-};
-
-/* argument container for ops->cgroup_init() */
-struct scx_cgroup_init_args {
-	/* the weight of the cgroup [1..10000] */
-	u32			weight;
-};
-
-enum scx_cpu_preempt_reason {
-	/* next task is being scheduled by &sched_class_rt */
-	SCX_CPU_PREEMPT_RT,
-	/* next task is being scheduled by &sched_class_dl */
-	SCX_CPU_PREEMPT_DL,
-	/* next task is being scheduled by &sched_class_stop */
-	SCX_CPU_PREEMPT_STOP,
-	/* unknown reason for SCX being preempted */
-	SCX_CPU_PREEMPT_UNKNOWN,
-};
-
-/*
- * Argument container for ops->cpu_acquire(). Currently empty, but may be
- * expanded in the future.
- */
-struct scx_cpu_acquire_args {};
-
-/* argument container for ops->cpu_release() */
-struct scx_cpu_release_args {
-	/* the reason the CPU was preempted */
-	enum scx_cpu_preempt_reason reason;
-
-	/* the task that's going to be scheduled on the CPU */
-	struct task_struct *task;
-};
-
-/**
- * struct sched_ext_ops - Operation table for BPF scheduler implementation
- *
- * Userland can implement an arbitrary scheduling policy by implementing and
- * loading operations in this table.
- */
-struct sched_ext_ops {
-	/**
-	 * select_cpu - Pick the target CPU for a task which is being woken up
-	 * @p: task being woken up
-	 * @prev_cpu: the cpu @p was on before sleeping
-	 * @wake_flags: SCX_WAKE_*
-	 *
-	 * Decision made here isn't final. @p may be moved to any CPU while it
-	 * is getting dispatched for execution later. However, as @p is not on
-	 * the rq at this point, getting the eventual execution CPU right here
-	 * saves a small bit of overhead down the line.
-	 *
-	 * If an idle CPU is returned, the CPU is kicked and will try to
-	 * dispatch. While an explicit custom mechanism can be added,
-	 * select_cpu() serves as the default way to wake up idle CPUs.
-	 *
-	 * @p may be dispatched directly by calling scx_bpf_dispatch(). If @p
-	 * is dispatched, the ops.enqueue() callback will be skipped. Finally,
-	 * if @p is dispatched to SCX_DSQ_LOCAL, it will be dispatched to the
-	 * local DSQ of whatever CPU is returned by this callback.
-	 */
-	s32 (*select_cpu)(struct task_struct *p, s32 prev_cpu, u64 wake_flags);
-
-	/**
-	 * enqueue - Enqueue a task on the BPF scheduler
-	 * @p: task being enqueued
-	 * @enq_flags: %SCX_ENQ_*
-	 *
-	 * @p is ready to run. Dispatch directly by calling scx_bpf_dispatch()
-	 * or enqueue on the BPF scheduler. If not directly dispatched, the bpf
-	 * scheduler owns @p and if it fails to dispatch @p, the task will
-	 * stall.
-	 *
-	 * If @p was dispatched from ops.select_cpu(), this callback is
-	 * skipped.
-	 */
-	void (*enqueue)(struct task_struct *p, u64 enq_flags);
-
-	/**
-	 * dequeue - Remove a task from the BPF scheduler
-	 * @p: task being dequeued
-	 * @deq_flags: %SCX_DEQ_*
-	 *
-	 * Remove @p from the BPF scheduler. This is usually called to isolate
-	 * the task while updating its scheduling properties (e.g. priority).
-	 *
-	 * The ext core keeps track of whether the BPF side owns a given task or
-	 * not and can gracefully ignore spurious dispatches from BPF side,
-	 * which makes it safe to not implement this method. However, depending
-	 * on the scheduling logic, this can lead to confusing behaviors - e.g.
-	 * scheduling position not being updated across a priority change.
-	 */
-	void (*dequeue)(struct task_struct *p, u64 deq_flags);
-
-	/**
-	 * dispatch - Dispatch tasks from the BPF scheduler and/or consume DSQs
-	 * @cpu: CPU to dispatch tasks for
-	 * @prev: previous task being switched out
-	 *
-	 * Called when a CPU's local dsq is empty. The operation should dispatch
-	 * one or more tasks from the BPF scheduler into the DSQs using
-	 * scx_bpf_dispatch() and/or consume user DSQs into the local DSQ using
-	 * scx_bpf_consume().
-	 *
-	 * The maximum number of times scx_bpf_dispatch() can be called without
-	 * an intervening scx_bpf_consume() is specified by
-	 * ops.dispatch_max_batch. See the comments on top of the two functions
-	 * for more details.
-	 *
-	 * When not %NULL, @prev is an SCX task with its slice depleted. If
-	 * @prev is still runnable as indicated by set %SCX_TASK_QUEUED in
-	 * @prev->scx.flags, it is not enqueued yet and will be enqueued after
-	 * ops.dispatch() returns. To keep executing @prev, return without
-	 * dispatching or consuming any tasks. Also see %SCX_OPS_ENQ_LAST.
-	 */
-	void (*dispatch)(s32 cpu, struct task_struct *prev);
-
-	/**
-	 * tick - Periodic tick
-	 * @p: task running currently
-	 *
-	 * This operation is called every 1/HZ seconds on CPUs which are
-	 * executing an SCX task. Setting @p->scx.slice to 0 will trigger an
-	 * immediate dispatch cycle on the CPU.
-	 */
-	void (*tick)(struct task_struct *p);
-
-	/**
-	 * runnable - A task is becoming runnable on its associated CPU
-	 * @p: task becoming runnable
-	 * @enq_flags: %SCX_ENQ_*
-	 *
-	 * This and the following three functions can be used to track a task's
-	 * execution state transitions. A task becomes ->runnable() on a CPU,
-	 * and then goes through one or more ->running() and ->stopping() pairs
-	 * as it runs on the CPU, and eventually becomes ->quiescent() when it's
-	 * done running on the CPU.
-	 *
-	 * @p is becoming runnable on the CPU because it's
-	 *
-	 * - waking up (%SCX_ENQ_WAKEUP)
-	 * - being moved from another CPU
-	 * - being restored after temporarily taken off the queue for an
-	 *   attribute change.
-	 *
-	 * This and ->enqueue() are related but not coupled. This operation
-	 * notifies @p's state transition and may not be followed by ->enqueue()
-	 * e.g. when @p is being dispatched to a remote CPU. Likewise, a task
-	 * may be ->enqueue()'d without being preceded by this operation e.g.
-	 * after exhausting its slice.
-	 */
-	void (*runnable)(struct task_struct *p, u64 enq_flags);
-
-	/**
-	 * running - A task is starting to run on its associated CPU
-	 * @p: task starting to run
-	 *
-	 * See ->runnable() for explanation on the task state notifiers.
-	 */
-	void (*running)(struct task_struct *p);
-
-	/**
-	 * stopping - A task is stopping execution
-	 * @p: task stopping to run
-	 * @runnable: is task @p still runnable?
-	 *
-	 * See ->runnable() for explanation on the task state notifiers. If
-	 * !@runnable, ->quiescent() will be invoked after this operation
-	 * returns.
-	 */
-	void (*stopping)(struct task_struct *p, bool runnable);
-
-	/**
-	 * quiescent - A task is becoming not runnable on its associated CPU
-	 * @p: task becoming not runnable
-	 * @deq_flags: %SCX_DEQ_*
-	 *
-	 * See ->runnable() for explanation on the task state notifiers.
-	 *
-	 * @p is becoming quiescent on the CPU because it's
-	 *
-	 * - sleeping (%SCX_DEQ_SLEEP)
-	 * - being moved to another CPU
-	 * - being temporarily taken off the queue for an attribute change
-	 *   (%SCX_DEQ_SAVE)
-	 *
-	 * This and ->dequeue() are related but not coupled. This operation
-	 * notifies @p's state transition and may not be preceded by ->dequeue()
-	 * e.g. when @p is being dispatched to a remote CPU.
-	 */
-	void (*quiescent)(struct task_struct *p, u64 deq_flags);
-
-	/**
-	 * yield - Yield CPU
-	 * @from: yielding task
-	 * @to: optional yield target task
-	 *
-	 * If @to is NULL, @from is yielding the CPU to other runnable tasks.
-	 * The BPF scheduler should ensure that other available tasks are
-	 * dispatched before the yielding task. Return value is ignored in this
-	 * case.
-	 *
-	 * If @to is not-NULL, @from wants to yield the CPU to @to. If the bpf
-	 * scheduler can implement the request, return %true; otherwise, %false.
-	 */
-	bool (*yield)(struct task_struct *from, struct task_struct *to);
-
-	/**
-	 * core_sched_before - Task ordering for core-sched
-	 * @a: task A
-	 * @b: task B
-	 *
-	 * Used by core-sched to determine the ordering between two tasks. See
-	 * Documentation/admin-guide/hw-vuln/core-scheduling.rst for details on
-	 * core-sched.
-	 *
-	 * Both @a and @b are runnable and may or may not currently be queued on
-	 * the BPF scheduler. Should return %true if @a should run before @b.
-	 * %false if there's no required ordering or @b should run before @a.
-	 *
-	 * If not specified, the default is ordering them according to when they
-	 * became runnable.
-	 */
-	bool (*core_sched_before)(struct task_struct *a, struct task_struct *b);
-
-	/**
-	 * set_weight - Set task weight
-	 * @p: task to set weight for
-	 * @weight: new eight [1..10000]
-	 *
-	 * Update @p's weight to @weight.
-	 */
-	void (*set_weight)(struct task_struct *p, u32 weight);
-
-	/**
-	 * set_cpumask - Set CPU affinity
-	 * @p: task to set CPU affinity for
-	 * @cpumask: cpumask of cpus that @p can run on
-	 *
-	 * Update @p's CPU affinity to @cpumask.
-	 */
-	void (*set_cpumask)(struct task_struct *p,
-			    const struct cpumask *cpumask);
-
-	/**
-	 * update_idle - Update the idle state of a CPU
-	 * @cpu: CPU to udpate the idle state for
-	 * @idle: whether entering or exiting the idle state
-	 *
-	 * This operation is called when @rq's CPU goes or leaves the idle
-	 * state. By default, implementing this operation disables the built-in
-	 * idle CPU tracking and the following helpers become unavailable:
-	 *
-	 * - scx_bpf_select_cpu_dfl()
-	 * - scx_bpf_test_and_clear_cpu_idle()
-	 * - scx_bpf_pick_idle_cpu()
-	 *
-	 * The user also must implement ops.select_cpu() as the default
-	 * implementation relies on scx_bpf_select_cpu_dfl().
-	 *
-	 * Specify the %SCX_OPS_KEEP_BUILTIN_IDLE flag to keep the built-in idle
-	 * tracking.
-	 */
-	void (*update_idle)(s32 cpu, bool idle);
-
-	/**
-	 * cpu_acquire - A CPU is becoming available to the BPF scheduler
-	 * @cpu: The CPU being acquired by the BPF scheduler.
-	 * @args: Acquire arguments, see the struct definition.
-	 *
-	 * A CPU that was previously released from the BPF scheduler is now once
-	 * again under its control.
-	 */
-	void (*cpu_acquire)(s32 cpu, struct scx_cpu_acquire_args *args);
-
-	/**
-	 * cpu_release - A CPU is taken away from the BPF scheduler
-	 * @cpu: The CPU being released by the BPF scheduler.
-	 * @args: Release arguments, see the struct definition.
-	 *
-	 * The specified CPU is no longer under the control of the BPF
-	 * scheduler. This could be because it was preempted by a higher
-	 * priority sched_class, though there may be other reasons as well. The
-	 * caller should consult @args->reason to determine the cause.
-	 */
-	void (*cpu_release)(s32 cpu, struct scx_cpu_release_args *args);
-
-	/**
-	 * init_task - Initialize a task to run in a BPF scheduler
-	 * @p: task to initialize for BPF scheduling
-	 * @args: init arguments, see the struct definition
-	 *
-	 * Either we're loading a BPF scheduler or a new task is being forked.
-	 * Initialize @p for BPF scheduling. This operation may block and can
-	 * be used for allocations, and is called exactly once for a task.
-	 *
-	 * Return 0 for success, -errno for failure. An error return while
-	 * loading will abort loading of the BPF scheduler. During a fork, it
-	 * will abort that specific fork.
-	 */
-	s32 (*init_task)(struct task_struct *p, struct scx_init_task_args *args);
-
-	/**
-	 * exit_task - Exit a previously-running task from the system
-	 * @p: task to exit
-	 *
-	 * @p is exiting or the BPF scheduler is being unloaded. Perform any
-	 * necessary cleanup for @p.
-	 */
-	void (*exit_task)(struct task_struct *p, struct scx_exit_task_args *args);
-
-	/**
-	 * enable - Enable BPF scheduling for a task
-	 * @p: task to enable BPF scheduling for
-	 *
-	 * Enable @p for BPF scheduling. enable() is called on @p any time it
-	 * enters SCX, and is always paired with a matching disable().
-	 */
-	void (*enable)(struct task_struct *p);
-
-	/**
-	 * disable - Disable BPF scheduling for a task
-	 * @p: task to disable BPF scheduling for
-	 *
-	 * @p is exiting, leaving SCX or the BPF scheduler is being unloaded.
-	 * Disable BPF scheduling for @p. A disable() call is always matched
-	 * with a prior enable() call.
-	 */
-	void (*disable)(struct task_struct *p);
-
-#ifdef CONFIG_EXT_GROUP_SCHED
-	/**
-	 * cgroup_init - Initialize a cgroup
-	 * @cgrp: cgroup being initialized
-	 * @args: init arguments, see the struct definition
-	 *
-	 * Either the BPF scheduler is being loaded or @cgrp created, initialize
-	 * @cgrp for sched_ext. This operation may block.
-	 *
-	 * Return 0 for success, -errno for failure. An error return while
-	 * loading will abort loading of the BPF scheduler. During cgroup
-	 * creation, it will abort the specific cgroup creation.
-	 */
-	s32 (*cgroup_init)(struct cgroup *cgrp,
-			   struct scx_cgroup_init_args *args);
-
-	/**
-	 * cgroup_exit - Exit a cgroup
-	 * @cgrp: cgroup being exited
-	 *
-	 * Either the BPF scheduler is being unloaded or @cgrp destroyed, exit
-	 * @cgrp for sched_ext. This operation my block.
-	 */
-	void (*cgroup_exit)(struct cgroup *cgrp);
-
-	/**
-	 * cgroup_prep_move - Prepare a task to be moved to a different cgroup
-	 * @p: task being moved
-	 * @from: cgroup @p is being moved from
-	 * @to: cgroup @p is being moved to
-	 *
-	 * Prepare @p for move from cgroup @from to @to. This operation may
-	 * block and can be used for allocations.
-	 *
-	 * Return 0 for success, -errno for failure. An error return aborts the
-	 * migration.
-	 */
-	s32 (*cgroup_prep_move)(struct task_struct *p,
-				struct cgroup *from, struct cgroup *to);
-
-	/**
-	 * cgroup_move - Commit cgroup move
-	 * @p: task being moved
-	 * @from: cgroup @p is being moved from
-	 * @to: cgroup @p is being moved to
-	 *
-	 * Commit the move. @p is dequeued during this operation.
-	 */
-	void (*cgroup_move)(struct task_struct *p,
-			    struct cgroup *from, struct cgroup *to);
-
-	/**
-	 * cgroup_cancel_move - Cancel cgroup move
-	 * @p: task whose cgroup move is being canceled
-	 * @from: cgroup @p was being moved from
-	 * @to: cgroup @p was being moved to
-	 *
-	 * @p was cgroup_prep_move()'d but failed before reaching cgroup_move().
-	 * Undo the preparation.
-	 */
-	void (*cgroup_cancel_move)(struct task_struct *p,
-				   struct cgroup *from, struct cgroup *to);
-
-	/**
-	 * cgroup_set_weight - A cgroup's weight is being changed
-	 * @cgrp: cgroup whose weight is being updated
-	 * @weight: new weight [1..10000]
-	 *
-	 * Update @tg's weight to @weight.
-	 */
-	void (*cgroup_set_weight)(struct cgroup *cgrp, u32 weight);
-#endif	/* CONFIG_CGROUPS */
-
-	/*
-	 * All online ops must come before ops.cpu_online().
-	 */
-
-	/**
-	 * cpu_online - A CPU became online
-	 * @cpu: CPU which just came up
-	 *
-	 * @cpu just came online. @cpu doesn't call ops.enqueue() or run tasks
-	 * associated with other CPUs beforehand.
-	 */
-	void (*cpu_online)(s32 cpu);
-
-	/**
-	 * cpu_offline - A CPU is going offline
-	 * @cpu: CPU which is going offline
-	 *
-	 * @cpu is going offline. @cpu doesn't call ops.enqueue() or run tasks
-	 * associated with other CPUs afterwards.
-	 */
-	void (*cpu_offline)(s32 cpu);
-
-	/*
-	 * All CPU hotplug ops must come before ops.init().
-	 */
-
-	/**
-	 * init - Initialize the BPF scheduler
-	 */
-	s32 (*init)(void);
-
-	/**
-	 * exit - Clean up after the BPF scheduler
-	 * @info: Exit info
-	 */
-	void (*exit)(struct scx_exit_info *info);
-
-	/**
-	 * dispatch_max_batch - Max nr of tasks that dispatch() can dispatch
-	 */
-	u32 dispatch_max_batch;
-
-	/**
-	 * flags - %SCX_OPS_* flags
-	 */
-	u64 flags;
-
-	/**
-	 * timeout_ms - The maximum amount of time, in milliseconds, that a
-	 * runnable task should be able to wait before being scheduled. The
-	 * maximum timeout may not exceed the default timeout of 30 seconds.
-	 *
-	 * Defaults to the maximum allowed timeout value of 30 seconds.
-	 */
-	u32 timeout_ms;
-
-	/**
-	 * exit_dump_len - scx_exit_info.dump buffer length. If 0, the default
-	 * value of 32768 is used.
-	 */
-	u32 exit_dump_len;
-
-	/**
-	 * hotplug_seq - A sequence number that may be set by the scheduler to
-	 * detect when a hotplug event has occurred during the loading process.
-	 * If 0, no detection occurs. Otherwise, the scheduler will fail to
-	 * load if the sequence number does not match @scx_hotplug_seq on the
-	 * enable path.
-	 */
-	u64 hotplug_seq;
-
-	/**
-	 * name - BPF scheduler's name
-	 *
-	 * Must be a non-zero valid BPF object name including only isalnum(),
-	 * '_' and '.' chars. Shows up in kernel.sched_ext_ops sysctl while the
-	 * BPF scheduler is enabled.
-	 */
-	char name[SCX_OPS_NAME_LEN];
-};
-
 enum scx_opi {
 	SCX_OPI_BEGIN			= 0,
 	SCX_OPI_NORMAL_BEGIN		= 0,
@@ -4926,43 +4317,42 @@ static bool promote_dispatch_2nd_arg(int off, int size,
 				     const struct bpf_prog *prog,
 				     struct bpf_insn_access_aux *info)
 {
-	struct btf *btf = bpf_get_btf_vmlinux();
-	const struct bpf_struct_ops_desc *st_ops_desc;
+	const struct bpf_struct_ops *st_ops;
 	const struct btf_member *member;
-	const struct btf_type *t;
-	u32 btf_id, member_idx;
+        const struct btf_type *t;
+        u32 btf_id, member_idx;
 	const char *mname;
 
-	/* btf_id should be the type id of struct sched_ext_ops */
+        /* btf_id should be the type id of struct sched_ext_ops */
 	btf_id = prog->aux->attach_btf_id;
-	st_ops_desc = bpf_struct_ops_find(btf, btf_id);
-	if (!st_ops_desc)
-		return false;
+	st_ops = bpf_struct_ops_find(btf_id);
+	if (!st_ops)
+                return false;
 
-	/* BTF type of struct sched_ext_ops */
-	t = st_ops_desc->type;
+        /* BTF type of struct sched_ext_ops */
+        t = st_ops->type;
 
 	member_idx = prog->expected_attach_type;
 	if (member_idx >= btf_type_vlen(t))
-		return false;
+                return false;
 
-	/*
+        /*
 	 * Get the member name of this struct_ops program, which corresponds to
 	 * a field in struct sched_ext_ops. For example, the member name of the
 	 * dispatch struct_ops program (callback) is "dispatch".
-	 */
+         */
 	member = &btf_type_member(t)[member_idx];
 	mname = btf_name_by_offset(btf_vmlinux, member->name_off);
 
-	/*
+        /*
 	 * Check if it is the second argument of the function pointer at
 	 * "dispatch" in struct sched_ext_ops. The arguments of struct_ops
 	 * operators are sequential and 64-bit, so the second argument is at
 	 * offset sizeof(__u64).
-	 */
-	if (strcmp(mname, "dispatch") == 0 &&
-	    off == sizeof(__u64)) {
-		/*
+         */
+        if (strcmp(mname, "dispatch") == 0 &&
+            off == sizeof(__u64)) {
+                /*
 		 * The value is a pointer to a type (struct task_struct) given
 		 * by a BTF ID (PTR_TO_BTF_ID). It is trusted (PTR_TRUSTED),
 		 * however, can be a NULL (PTR_MAYBE_NULL). The BPF program
@@ -4971,15 +4361,16 @@ static bool promote_dispatch_2nd_arg(int off, int size,
 		 *
 		 * Longer term, this is something that should be addressed by
 		 * BTF, and be fully contained within the verifier.
-		 */
-		info->reg_type = PTR_MAYBE_NULL | PTR_TO_BTF_ID | PTR_TRUSTED;
-		info->btf = btf_vmlinux;
-		info->btf_id = task_struct_type_id;
+                 */
+                info->reg_type = PTR_MAYBE_NULL | PTR_TO_BTF_ID |
+                  PTR_TRUSTED;
+                info->btf = btf_vmlinux;
+                info->btf_id = task_struct_type_id;
 
-		return true;
-	}
+                return true;
+        }
 
-	return false;
+        return false;
 }
 
 static bool bpf_scx_is_valid_access(int off, int size,
@@ -5030,7 +4421,7 @@ bpf_scx_get_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_task_storage_delete:
 		return &bpf_task_storage_delete_proto;
 	default:
-		return bpf_base_func_proto(func_id, prog);
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -5103,7 +4494,7 @@ static int bpf_scx_check_member(const struct btf_type *t,
 	case offsetof(struct sched_ext_ops, exit):
 		break;
 	default:
-		if (prog->sleepable)
+		if (prog->aux->sleepable)
 			return -EINVAL;
 	}
 
@@ -5150,6 +4541,9 @@ static int bpf_scx_validate(void *kdata)
 {
 	return 0;
 }
+
+/* "extern" to avoid sparse warning, only used in this file */
+extern struct bpf_struct_ops bpf_sched_ext_ops;
 
 static s32 select_cpu_stub(struct task_struct *p, s32 prev_cpu, u64 wake_flags) { return -EINVAL; }
 static void enqueue_stub(struct task_struct *p, u64 enq_flags) {}
@@ -5217,7 +4611,7 @@ static struct sched_ext_ops __bpf_ops_sched_ext_ops = {
 	.exit = exit_stub,
 };
 
-static struct bpf_struct_ops bpf_sched_ext_ops = {
+struct bpf_struct_ops bpf_sched_ext_ops = {
 	.verifier_ops = &bpf_scx_verifier_ops,
 	.reg = bpf_scx_reg,
 	.unreg = bpf_scx_unreg,
@@ -5227,7 +4621,6 @@ static struct bpf_struct_ops bpf_sched_ext_ops = {
 	.update = bpf_scx_update,
 	.validate = bpf_scx_validate,
 	.name = "sched_ext_ops",
-	.owner = THIS_MODULE,
 	.cfi_stubs = &__bpf_ops_sched_ext_ops
 };
 
@@ -5479,6 +4872,14 @@ void __init init_sched_ext_class(void)
  * Helpers that can be called from the BPF scheduler.
  */
 #include <linux/btf_ids.h>
+
+#ifndef BTF_KFUNCS_START
+#define BTF_KFUNCS_START(name)				\
+BTF_SET8_START(name)
+
+#define BTF_KFUNCS_END(name)				\
+BTF_SET8_END(name)
+#endif
 
 __bpf_kfunc_start_defs();
 
@@ -6609,12 +6010,6 @@ static int __init scx_init(void)
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL,
 					     &scx_kfunc_set_any))) {
 		pr_err("sched_ext: Failed to register kfunc sets (%d)\n", ret);
-		return ret;
-	}
-
-	ret = register_bpf_struct_ops(&bpf_sched_ext_ops, sched_ext_ops);
-	if (ret) {
-		pr_err("sched_ext: Failed to register struct_ops (%d)\n", ret);
 		return ret;
 	}
 
