@@ -76,6 +76,8 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	if (!buf)
 		return -ENOMEM;
 
+	pr_info("BOB_DEBUG: %s(): buf=%px dfse=%px dfse->io_mem=%px dfse->buf=%px pos=%lld *ppos=%lld skip=%d size=%d count=%zu\n",
+		__func__, buf, dfse, dfse ? dfse->io_mem : NULL, dfse ? dfse->buf : NULL, pos, *ppos, skip, size, count);
 	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM) {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 		/*
@@ -102,13 +104,19 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 			return -EINVAL;
 		}
 
+		pr_info("BOB_DEBUG: %s(): dfse=%px memcpy_fromio(%px, %px(%px + %lld), %d)\n",
+			__func__, dfse, buf, dfse->io_mem + pos, dfse->io_mem, pos, size);
 		memcpy_fromio(buf, dfse->io_mem + pos, size);
 #endif
 	} else {
+		pr_info("BOB_DEBUG: %s(): dfse=%px memcpy(%px, %px(%px + %lld), %d)\n",
+			__func__, dfse, buf, ((u8*)(dfse->buf)+pos), dfse->buf, pos, size);
 		memcpy(buf, ((u8 *)(dfse->buf) + pos), size);
 	}
 
 	/* copy to userspace */
+	pr_info("BOB_DEBUG: %s(): dfse=%px copy_to_user(%px, %px(%px + %d), %zu)\n",
+		__func__, dfse, buffer, buf + skip, buf, skip, count);
 	size_ret = copy_to_user(buffer, buf + skip, count);
 
 	kfree(buf);
@@ -133,7 +141,8 @@ static const struct file_operations sof_dfs_fops = {
 static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 				   void __iomem *base, size_t size,
 				   const char *name,
-				   enum sof_debugfs_access_type access_type)
+				   enum sof_debugfs_access_type access_type,
+				   int bar)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -162,6 +171,10 @@ static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 	}
 #endif
 
+	pr_info("BOB_DEBUG: %s(): dfse=%px bar=%d base=%px size=%zu name=%s\n",
+		__func__, dfse, bar, base, size, name);
+	dump_stack();
+
 	debugfs_create_file(name, 0444, sdev->debugfs_root, dfse,
 			    &sof_dfs_fops);
 
@@ -182,7 +195,7 @@ int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 		return bar;
 
 	return snd_sof_debugfs_io_item(sdev, sdev->bar[bar] + offset, size, name,
-				       access_type);
+				       access_type, bar);
 }
 EXPORT_SYMBOL_GPL(snd_sof_debugfs_add_region_item_iomem);
 
@@ -347,7 +360,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 
 		err = snd_sof_debugfs_io_item(sdev, sdev->bar[map->bar] +
 					      map->offset, map->size,
-					      map->name, map->access_type);
+					      map->name, map->access_type, map->bar);
 		/* errors are only due to memory allocation, not debugfs */
 		if (err < 0)
 			return err;
