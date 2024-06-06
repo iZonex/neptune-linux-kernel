@@ -50,14 +50,21 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 	int err = 0;
 	int ret;
 
-	if (!swidget->private)
+	dev_info(sdev->dev, "BOB_DEBUG: %s(): attempting to free %s\n", __func__, swidget->widget->name);
+	if (strcmp(swidget->widget->name, "PCM1P") == 0)
+		dump_stack();
+	if (!swidget->private) {
+		dev_info(sdev->dev, "BOB_DEBUG: %s(): no private data\n", __func__);
 		return 0;
+	}
 
 	trace_sof_widget_free(swidget);
 
 	/* only free when use_count is 0 */
-	if (--swidget->use_count)
+	if (--swidget->use_count) {
+		dev_info(sdev->dev, "BOB_DEBUG: %s(): swidget->use_count=%d\n", __func__, swidget->use_count);
 		return 0;
+	}
 
 	pipe_widget = swidget->spipe->pipe_widget;
 
@@ -117,6 +124,8 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 
 	if (!err)
 		dev_dbg(sdev->dev, "widget %s freed\n", swidget->widget->name);
+	else
+		dev_info(sdev->dev, "BOB_DEBUG: %s(): err=%d\n", __func__, err);
 
 	return err;
 }
