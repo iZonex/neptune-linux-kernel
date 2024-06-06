@@ -1,0 +1,28 @@
+6.8/features/backport-asoc-amd:
+    4c8396bb04fe00a72a926c40b9ea850b66765661 ("ASoC: SOF: pcm: Restrict DSP D0i3 during S0ix to IPC3")
+6.8/features/backport-misc:
+    a93a2389614ffa0efc360b4c2ddaf8ebb32968e0 ("usb: dwc3: Properly set system wakeup")
+6.8/features/acpi:
+    ba6fb9f27fb8f7779c899d91694de0d10e230c3c ("ACPICA: Limit error message flood caused by firmware bug")
+6.8/features/ath11k-qca2066:
+    8cde9c02310e78ff91da6a6dda2d5ce1a0bb62e4 ("mac80211: don't overwrite NSS calculation")
+6.8/features/gpu-reset:
+    f6fbb8393ce99b0eb0682da4b4e3c06b79d494cd ("drm/amdgpu: schedule GPU reset event work function")
+6.8/features/hacks:
+    72a1aba18fc0172420db51ad2883245b0eba0b82 ("[WIP] ASoC: max98388: Fix power on when resuming from suspend")
+6.8/features/quirks:
+    d2522d8bf88b35a8cf6978afbbd55c80d2d53f4f ("drm: panel-orientation-quirks: Add quirk for Valve Galileo")
+6.8/features/sched-ext:
+    63909de840a984d895a8257628b2810cfa00ffd7 ("sched_ext-steam: make the sched_ext v6 working on the Steam kernel")
+6.8/features/setup-gitlabci:
+    d3d3be3be6be497bfd7de7f23340bbc14472d847 ("gitlab-ci: Enable sched_ext in config-neptune")
+6.8/features/steamdeck-mfd:
+    5a4fb48df06bfb511b697e3ea343fb4ceed0fb9a ("mfd: steamdeck: Expose controller board power in sysfs")
+6.8/features/tsc:
+    fb6d13584d4a4866506176788ca20fea5500e2a3 ("x86: revert extra time added to check for tsc wraps")
+6.8/features/usb:
+    bef26b714d539eb2c0792801d02c027cf42dfafb ("usb: dwc3: Fix "linux,extcon-name"")
+6.8/features/hid:
+    65ee461d14b8c458fa28b841bd2e294e14d0a5f6 ("Input: xpad - add support for ASUS ROG RAIKIRI")
+6.8/features/amd-color-mgmt:
+    433fffcb2834a986d55a548e01c67fc6b55a802a ("HACK: add KConfig to enable driver-specific color mgmt props")
