@@ -34,7 +34,7 @@ ath11k_coredump_build(struct ath11k_mhi_fw_crash_data *crash_data,
 		return NULL;
 
 	dump_data = (struct ath11k_dump_file_data *)(buf);
-	strlcpy(dump_data->df_magic, "ATH11K-FW-DUMP",
+	strscpy(dump_data->df_magic, "ATH11K-FW-DUMP",
 		sizeof(dump_data->df_magic));
 	dump_data->len = cpu_to_le32(len);
 	dump_data->version = cpu_to_le32(ATH11K_FW_CRASH_DUMP_VERSION);
