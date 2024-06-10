@@ -1313,6 +1313,10 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	int i;
 
 	dev_dbg(card->dev, "ASoC: find BE for widget %s\n", widget->name);
+	if (strcmp(widget->name, "PCM1P") == 0) {
+		dev_dbg(card->dev, "BOB_DEBUG: %s():\n", __func__);
+		dump_stack();
+	}
 
 	for_each_card_rtds(card, be) {
 
