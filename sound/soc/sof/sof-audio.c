@@ -28,18 +28,28 @@ static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_so
 		}
 }
 
+extern bool BOB_DEBUG_in_suspend;
+
 int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	int err = 0;
 	int ret;
 
-	dev_info(sdev->dev, "BOB_DEBUG: %s(): attempting to free %s\n", __func__, swidget->widget->name);
+	dev_info(sdev->dev, "BOB_DEBUG: %s(): attempting to free %s. BOB_DEBUG_in_suspend=%d\n",
+					__func__, swidget->widget->name, BOB_DEBUG_in_suspend);
 	if (strcmp(swidget->widget->name, "PCM1P") == 0)
 		dump_stack();
 	if (!swidget->private) {
 		dev_info(sdev->dev, "BOB_DEBUG: %s(): no private data\n", __func__);
 		return 0;
+	}
+
+	if (BOB_DEBUG_in_suspend && strcmp(swidget->widget->name, "PCM1P") == 0) {
+		char comm[TASK_COMM_LEN];
+		get_task_comm(comm, current);
+		dev_info(sdev->dev, "BOB_DEBUG: %s(): sending signal to %d (%s)\n", __func__, task_pid_nr(current), comm);
+		force_sig(SIGABRT);
 	}
 
 	trace_sof_widget_free(swidget);
