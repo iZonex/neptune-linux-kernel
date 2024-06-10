@@ -3283,6 +3283,109 @@ static int snd_pcm_forward_ioctl(struct snd_pcm_substream *substream,
 	return result < 0 ? result : 0;
 }
 
+static const char * snd_pcm_ioctl_name(unsigned int cmd)
+{
+	switch (cmd) {
+	case SNDRV_PCM_IOCTL_PVERSION:
+		return "SNDRV_PCM_IOCTL_PVERSION";
+		break;
+	case SNDRV_PCM_IOCTL_INFO:
+		return "SNDRV_PCM_IOCTL_INFO";
+		break;
+	case SNDRV_PCM_IOCTL_TSTAMP:
+		return "SNDRV_PCM_IOCTL_TSTAMP";
+		break;
+	case SNDRV_PCM_IOCTL_TTSTAMP:
+		return "SNDRV_PCM_IOCTL_TTSTAMP";
+		break;
+	case SNDRV_PCM_IOCTL_USER_PVERSION:
+		return "SNDRV_PCM_IOCTL_USER_PVERSION";
+		break;
+	case SNDRV_PCM_IOCTL_HW_REFINE:
+		return "SNDRV_PCM_IOCTL_HW_REFINE";
+		break;
+	case SNDRV_PCM_IOCTL_HW_PARAMS:
+		return "SNDRV_PCM_IOCTL_HW_PARAMS";
+		break;
+	case SNDRV_PCM_IOCTL_HW_FREE:
+		return "SNDRV_PCM_IOCTL_HW_FREE";
+		break;
+	case SNDRV_PCM_IOCTL_SW_PARAMS:
+		return "SNDRV_PCM_IOCTL_SW_PARAMS";
+		break;
+	case SNDRV_PCM_IOCTL_STATUS64:
+		return "SNDRV_PCM_IOCTL_STATUS";
+		break;
+	case SNDRV_PCM_IOCTL_DELAY:
+		return "SNDRV_PCM_IOCTL_DELAY";
+		break;
+	case SNDRV_PCM_IOCTL_HWSYNC:
+		return "SNDRV_PCM_IOCTL_HWSYNC";
+		break;
+	case SNDRV_PCM_IOCTL_SYNC_PTR:
+		return "SNDRV_PCM_IOCTL_SYNC_PTR|__SNDRV_PCM_IOCTL_SYNC_PTR64|__SNDRV_PCM_IOCTL_SYNC_PTR";
+		break;
+	case SNDRV_PCM_IOCTL_STATUS_EXT64:
+		return "SNDRV_PCM_IOCTL_STATUS_EXT";
+		break;
+	case SNDRV_PCM_IOCTL_CHANNEL_INFO:
+		return "SNDRV_PCM_IOCTL_CHANNEL_INFO";
+		break;
+	case SNDRV_PCM_IOCTL_PREPARE:
+		return "SNDRV_PCM_IOCTL_PREPARE";
+		break;
+	case SNDRV_PCM_IOCTL_RESET:
+		return "SNDRV_PCM_IOCTL_RESET";
+		break;
+	case SNDRV_PCM_IOCTL_START:
+		return "SNDRV_PCM_IOCTL_START";
+		break;
+	case SNDRV_PCM_IOCTL_DROP:
+		return "SNDRV_PCM_IOCTL_DROP";
+		break;
+	case SNDRV_PCM_IOCTL_DRAIN:
+		return "SNDRV_PCM_IOCTL_DRAIN";
+		break;
+	case SNDRV_PCM_IOCTL_PAUSE:
+		return "SNDRV_PCM_IOCTL_PAUSE";
+		break;
+	case SNDRV_PCM_IOCTL_REWIND:
+		return "SNDRV_PCM_IOCTL_REWIND";
+		break;
+	case SNDRV_PCM_IOCTL_RESUME:
+		return "SNDRV_PCM_IOCTL_RESUME";
+		break;
+	case SNDRV_PCM_IOCTL_XRUN:
+		return "SNDRV_PCM_IOCTL_XRUN";
+		break;
+	case SNDRV_PCM_IOCTL_FORWARD:
+		return "SNDRV_PCM_IOCTL_FORWARD";
+		break;
+	case SNDRV_PCM_IOCTL_WRITEI_FRAMES:
+		return "SNDRV_PCM_IOCTL_WRITEI_FRAMES";
+		break;
+	case SNDRV_PCM_IOCTL_READI_FRAMES:
+		return "SNDRV_PCM_IOCTL_READI_FRAMES";
+		break;
+	case SNDRV_PCM_IOCTL_WRITEN_FRAMES:
+		return "SNDRV_PCM_IOCTL_WRITEN_FRAMES";
+		break;
+	case SNDRV_PCM_IOCTL_READN_FRAMES:
+		return "SNDRV_PCM_IOCTL_READN_FRAMES";
+		break;
+	case SNDRV_PCM_IOCTL_LINK:
+		return "SNDRV_PCM_IOCTL_LINK";
+		break;
+	case SNDRV_PCM_IOCTL_UNLINK:
+		return "SNDRV_PCM_IOCTL_UNLINK";
+		break;
+	default:
+		break;
+	}
+
+	return "<unknown>";
+}
+
 static int snd_pcm_common_ioctl(struct file *file,
 				 struct snd_pcm_substream *substream,
 				 unsigned int cmd, void __user *arg)
@@ -3290,16 +3393,23 @@ static int snd_pcm_common_ioctl(struct file *file,
 	struct snd_pcm_file *pcm_file = file->private_data;
 	int res;
 
-	if (PCM_RUNTIME_CHECK(substream))
+	if (PCM_RUNTIME_CHECK(substream)) {
+		dev_dbg(substream->pcm->card->dev, "BOB_DEBUG: %s(): ioctl(%s) -ENXIO\n", __func__, snd_pcm_ioctl_name(cmd));
 		return -ENXIO;
+	}
 
-	if (substream->runtime->state == SNDRV_PCM_STATE_DISCONNECTED)
+	if (substream->runtime->state == SNDRV_PCM_STATE_DISCONNECTED) {
+		dev_dbg(substream->pcm->card->dev, "BOB_DEBUG: %s(): ioctl(%s) -EBADFD\n", __func__, snd_pcm_ioctl_name(cmd));
 		return -EBADFD;
+	}
 
 	res = snd_power_wait(substream->pcm->card);
-	if (res < 0)
+	if (res < 0) {
+		dev_dbg(substream->pcm->card->dev, "BOB_DEBUG: %s(): ioctl(%s) failed to wait for power: %d\n", __func__, snd_pcm_ioctl_name(cmd), res);
 		return res;
+	}
 
+	dev_dbg(substream->pcm->card->dev, "BOB_DEBUG: %s(): ioctl(%s)\n", __func__, snd_pcm_ioctl_name(cmd));
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:
 		return put_user(SNDRV_PCM_VERSION, (int __user *)arg) ? -EFAULT : 0;
