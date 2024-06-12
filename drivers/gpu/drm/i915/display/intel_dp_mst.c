@@ -788,8 +788,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	wait_for_act_sent(encoder, pipe_config);
 
-	drm_dp_add_payload_part2(&intel_dp->mst_mgr, &state->base,
-				 drm_atomic_get_mst_payload_state(mst_state, connector->port));
+	drm_dp_add_payload_part2(&intel_dp->mst_mgr,
+			drm_atomic_get_mst_payload_state(mst_state, connector->port));
 
 	if (DISPLAY_VER(dev_priv) >= 14 && pipe_config->fec_enable)
 		intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(trans), 0,
