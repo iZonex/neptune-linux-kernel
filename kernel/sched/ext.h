@@ -45,6 +45,8 @@ int scx_check_setscheduler(struct task_struct *p, int policy);
 bool scx_can_stop_tick(struct rq *rq);
 bool task_should_scx(struct task_struct *p);
 void init_sched_ext_class(void);
+void scx_rq_activate(struct rq *rq);
+void scx_rq_deactivate(struct rq *rq);
 
 static inline u32 scx_cpuperf_target(s32 cpu)
 {

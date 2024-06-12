@@ -2554,6 +2554,16 @@ static void rq_offline_scx(struct rq *rq, enum rq_onoff_reason reason)
 		handle_hotplug(rq, false);
 }
 
+void scx_rq_activate(struct rq *rq)
+{
+	handle_hotplug(rq, true);
+}
+
+void scx_rq_deactivate(struct rq *rq)
+{
+	handle_hotplug(rq, false);
+}
+
 #else	/* CONFIG_SMP */
 
 static bool test_and_clear_cpu_idle(int cpu) { return false; }
