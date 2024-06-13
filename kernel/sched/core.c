@@ -9757,7 +9757,9 @@ int sched_cpu_activate(unsigned int cpu)
 		cpuset_cpu_active();
 	}
 
+#ifdef CONFIG_SCHED_CLASS_EXT
 	scx_rq_activate(rq);
+#endif
 
 	/*
 	 * Put the rq online, if not already. This happens:
