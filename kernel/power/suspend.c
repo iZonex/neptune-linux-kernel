@@ -624,8 +624,6 @@ static int enter_state(suspend_state_t state)
 	return error;
 }
 
-bool BOB_DEBUG_in_suspend = false;
-EXPORT_SYMBOL(BOB_DEBUG_in_suspend);
 /**
  * pm_suspend - Externally visible function for suspending the system.
  * @state: System sleep state to enter.
@@ -641,20 +639,12 @@ int pm_suspend(suspend_state_t state)
 		return -EINVAL;
 
 	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
-	if (state == PM_SUSPEND_MEM) {
-		BOB_DEBUG_in_suspend = true;
-		pr_info("BOB_DEBUG: %s(): BOB_DEBUG_in_suspend=%d\n", __func__, BOB_DEBUG_in_suspend);
-	}
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
 		dpm_save_failed_errno(error);
 	} else {
 		suspend_stats.success++;
-	}
-	if (state == PM_SUSPEND_MEM) {
-		BOB_DEBUG_in_suspend = false;
-		pr_info("BOB_DEBUG: %s(): BOB_DEBUG_in_suspend=%d\n", __func__, BOB_DEBUG_in_suspend);
 	}
 	pr_info("suspend exit\n");
 	return error;
