@@ -273,6 +273,7 @@ alloc_pool_single(struct drmcgroup_state *drmcs, struct drmcg_device *dev,
 
 	pool->device = dev;
 	pool->num_res = dev->base.num_regions;
+	pool->cs = drmcs;
 
 	if (parent)
 		ppool = find_cg_pool_locked(parent, dev);
