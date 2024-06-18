@@ -177,6 +177,7 @@ static void drmcs_free(struct cgroup_subsys_state *css)
 	}
 	spin_unlock(&drmcg_lock);
 
+	synchronize_rcu();
 	kfree(drmcs);
 }
 
