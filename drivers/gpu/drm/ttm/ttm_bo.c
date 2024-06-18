@@ -625,12 +625,12 @@ retry:
 			dma_resv_unlock(res->bo->base.resv);
 	}
 
-	if (!try_low && hit_low) {
-		try_low = true;
-		goto retry;
-	}
-
 	if (!bo) {
+		if (!busy_bo && !try_low && hit_low) {
+			try_low = true;
+			goto retry;
+		}
+
 		if (busy_bo && !ttm_bo_get_unless_zero(busy_bo))
 			busy_bo = NULL;
 		spin_unlock(&bdev->lru_lock);
