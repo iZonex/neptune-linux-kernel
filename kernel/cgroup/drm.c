@@ -243,7 +243,7 @@ bool drmcs_evict_valuable(struct drmcgroup_pool_state *limit,
 		return false;
 
 	if (!ignore_low) {
-		low = READ_ONCE(ctest->elow);
+		low = READ_ONCE(ctest->low);
 		if (used > low)
 			return true;
 
