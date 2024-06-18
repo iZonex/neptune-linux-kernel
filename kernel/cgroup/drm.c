@@ -220,19 +220,28 @@ bool drmcs_evict_valuable(struct drmcgroup_pool_state *limit,
 			  bool *hit_low)
 {
 	struct drmcgroup_pool_state *pool = test;
-	struct page_counter *climit = &limit->resources[index].cnt;
-	struct page_counter *ctest = &test->resources[index].cnt;
+	struct page_counter *climit;
+	struct page_counter *ctest;
 	u64 used, min, low;
 
 	/* Special cases */
-	if (!limit || limit == test || !parent_drmcg(limit->cs))
+	if (limit == test || !parent_drmcg(test->cs))
 		return true;
 
-	for (pool = test; pool && limit != pool; pool = pool_parent(pool))
-		{}
+	if (limit) {
+		for (pool = test; pool && limit != pool;
+		     pool = pool_parent(pool)) {}
 
-	if (!pool)
-		return false;
+		if (!pool)
+			return false;
+	}
+	else {
+		for (limit = test; pool_parent(limit);
+		     limit = pool_parent(limit)) {}
+	}
+
+	climit = &limit->resources[index].cnt;
+	ctest = &test->resources[index].cnt;
 
 	page_counter_calculate_protection(climit, ctest, true);
 
