@@ -15,7 +15,7 @@
 6.8/features/sched-ext:
     63909de840a984d895a8257628b2810cfa00ffd7 ("sched_ext-steam: make the sched_ext v6 working on the Steam kernel")
 6.8/features/setup-gitlabci:
-    5901cef597210cb44cdf57a6016591bfe7fe4d3e ("gitlab-ci: Enable merge request pipelines")
+    2d41a0ac8afacce9f239b3ddb4fd3bb8333c0d9e ("setup-gitlabci: Update debian kernel builder to trixie")
 6.8/features/steamdeck-mfd:
     5a4fb48df06bfb511b697e3ea343fb4ceed0fb9a ("mfd: steamdeck: Expose controller board power in sysfs")
 6.8/features/tsc:
