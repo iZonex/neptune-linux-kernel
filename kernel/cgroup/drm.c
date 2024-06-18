@@ -417,6 +417,8 @@ int drmcg_register_device(struct drm_device *drm_dev,
 	dev->name = name;
 	dev->base = *cgdev;
 
+	kref_init(&dev->ref);
+
 	spin_lock(&drmcg_lock);
 	list_add_tail_rcu(&dev->dev_node, &drmcg_devices);
 	spin_unlock(&drmcg_lock);
