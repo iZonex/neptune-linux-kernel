@@ -233,6 +233,8 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		newattrs.ia_gid = gid;
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
 		inode_lock(d_inode(dentry));
+		dev_info(dev, "BOB_DEBUG: %s(): nodename=%s mode=0x%x\n", __func__, nodename, mode);
+		dump_stack();
 		notify_change(&init_user_ns, dentry, &newattrs, NULL);
 		inode_unlock(d_inode(dentry));
 
@@ -335,6 +337,8 @@ static int handle_remove(const char *nodename, struct device *dev)
 			 * before unlinking this node, reset permissions
 			 * of possible references like hardlinks
 			 */
+			dev_info(dev, "BOB_DEBUG: %s(): nodename=%s\n", __func__, nodename);
+			dump_stack();
 			newattrs.ia_uid = GLOBAL_ROOT_UID;
 			newattrs.ia_gid = GLOBAL_ROOT_GID;
 			newattrs.ia_mode = stat.mode & ~0777;
