@@ -17,6 +17,7 @@
 //   o Add more codecs and platforms to ensure good API coverage.
 //   o Support TDM on PCM and I2S
 
+#include "linux/async.h"
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -736,6 +737,9 @@ int snd_soc_suspend(struct device *dev)
 
 	snd_soc_card_suspend_post(card);
 
+	pr_info("BOB_DEBUG: %s(): synchronizing all async work\n", __func__);
+	async_synchronize_full();
+	pr_info("BOB_DEBUG: %s(): finished synchronizing all async work\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_suspend);
