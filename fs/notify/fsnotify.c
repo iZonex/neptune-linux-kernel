@@ -494,6 +494,11 @@ int fsnotify(__u32 mask, const void *data, int data_type, struct inode *dir,
 	if (path)
 		mnt = real_mount(path->mnt);
 
+	if (file_name && (strcmp(file_name->name, "controlC0") == 0 || strcmp(file_name->name, "controlC1") == 0)) {
+		pr_info("BOB_DEBUG: %s(): file_name=%s mask=0x%x\n", __func__, file_name ? file_name->name : NULL, mask);
+		dump_stack();
+	}
+
 	if (!inode) {
 		/* Dirent event - report on TYPE_INODE to dir */
 		inode = dir;
