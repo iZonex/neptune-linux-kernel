@@ -1,0 +1,28 @@
+6.8/features/backport-asoc-amd:
+    4c8396bb04fe00a72a926c40b9ea850b66765661 ("ASoC: SOF: pcm: Restrict DSP D0i3 during S0ix to IPC3")
+6.8/features/backport-misc:
+    875bc4832537624d55c42154bad3c8bb2d278a3d ("[FROM-UPSTREAM] drm/amd/display: Enable colorspace property for MST connectors")
+6.8/features/acpi:
+    ba6fb9f27fb8f7779c899d91694de0d10e230c3c ("ACPICA: Limit error message flood caused by firmware bug")
+6.8/features/ath11k-qca2066:
+    a232fe28c99fb1c541ea5fbd85e943515a2f28af ("[NOT-FOR-UPSTREAM] wifi: ath11k: Rename QCA2066 fw dir to QCA206X")
+6.8/features/gpu-reset:
+    f6fbb8393ce99b0eb0682da4b4e3c06b79d494cd ("drm/amdgpu: schedule GPU reset event work function")
+6.8/features/hacks:
+    72a1aba18fc0172420db51ad2883245b0eba0b82 ("[WIP] ASoC: max98388: Fix power on when resuming from suspend")
+6.8/features/quirks:
+    d2522d8bf88b35a8cf6978afbbd55c80d2d53f4f ("drm: panel-orientation-quirks: Add quirk for Valve Galileo")
+6.8/features/sched-ext:
+    4a3b6bde0f5f1e6b4d446652562cd943ce735881 ("sched_ext: add ops.dump() interface for forward compatability")
+6.8/features/setup-gitlabci:
+    2d41a0ac8afacce9f239b3ddb4fd3bb8333c0d9e ("setup-gitlabci: Update debian kernel builder to trixie")
+6.8/features/steamdeck-mfd:
+    5a4fb48df06bfb511b697e3ea343fb4ceed0fb9a ("mfd: steamdeck: Expose controller board power in sysfs")
+6.8/features/tsc:
+    fb6d13584d4a4866506176788ca20fea5500e2a3 ("x86: revert extra time added to check for tsc wraps")
+6.8/features/usb:
+    bef26b714d539eb2c0792801d02c027cf42dfafb ("usb: dwc3: Fix "linux,extcon-name"")
+6.8/features/hid:
+    65ee461d14b8c458fa28b841bd2e294e14d0a5f6 ("Input: xpad - add support for ASUS ROG RAIKIRI")
+6.8/features/amd-color-mgmt:
+    433fffcb2834a986d55a548e01c67fc6b55a802a ("HACK: add KConfig to enable driver-specific color mgmt props")
