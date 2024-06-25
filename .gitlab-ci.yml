@@ -16,6 +16,7 @@ default:
 
 workflow:
   rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH
   auto_cancel:
@@ -66,9 +67,9 @@ stages:
 .prep-debian-kernel-builder:
   variables:
     IMAGE_DISTRO_BASE: debian
-    IMAGE_DISTRO_TAG: buster-slim
+    IMAGE_DISTRO_TAG: trixie-slim
     IMAGE_NAME: debian-kernel-builder
-    IMAGE_TAG: "2024-02-29"
+    IMAGE_TAG: "2024-06-10"
 
 check-debian-kernel-builder:
   extends:
@@ -92,7 +93,7 @@ build-kernel-neptune:
   extends:
     - .use-debian-kernel-builder
   rules:
-    - if: $CI_COMMIT_TAG == null && $CI_COMMIT_BRANCH !~ /-integration$/
+    - if: $CI_PIPELINE_SOURCE != 'merge_request_event' && $CI_COMMIT_TAG == null && $CI_COMMIT_BRANCH !~ /-integration$/
       when: manual
       allow_failure: true
     - when: on_success
@@ -154,7 +155,7 @@ test-kernel-qemu:
   needs:
     - build-kernel-qemu
   rules:
-    - if: $CI_COMMIT_TAG == null
+    - if: $CI_PIPELINE_SOURCE != 'merge_request_event' && $CI_COMMIT_TAG == null
       when: manual
       allow_failure: true
     - when: on_success
