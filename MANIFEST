@@ -1,0 +1,28 @@
+6.8/features/backport-asoc-amd:
+    2ee0c1b86a1ee7674b590ba24018e61f65b7c63f ("[NOT-FOR-UPSTREAM] ASoC: amd: acp: Use correct DAI link ID for BT codec")
+6.8/features/backport-misc:
+    8dbbf3b8f2c41509f09c9a3598f1bea3c392a5bb ("[FROM-UPSTREAM] wifi: rtw88: 8822ce: refine power parameters for RFE type 5")
+6.8/features/amd-drm-extra:
+    bdaf6553364e1dc7e97f54a249f94f26452b4418 ("[NOT-FOR-UPSTREAM] drm/amdgpu: Use correct amd_powergating_state enum item")
+6.8/features/bt:
+    3ea1541efc91116181ec4abcebd62810df7aff33 ("[FROM-QUECTEL] Bluetooth: mgmt: Fix receiving MGMT_EV_DEVICE_FLAGS_CHANGED")
+6.8/features/gpu-reset:
+    f6fbb8393ce99b0eb0682da4b4e3c06b79d494cd ("drm/amdgpu: schedule GPU reset event work function")
+6.8/features/hacks:
+    8ce55f4af0508be707a8c5a50eca0323b6a4cde5 ("[NOT-FOR-UPSTREAM]: drm/amd/display: Add KConfig to enable driver-specific color mgmt props")
+6.8/features/quirks:
+    d2522d8bf88b35a8cf6978afbbd55c80d2d53f4f ("drm: panel-orientation-quirks: Add quirk for Valve Galileo")
+6.8/features/sched-ext:
+    4a3b6bde0f5f1e6b4d446652562cd943ce735881 ("sched_ext: add ops.dump() interface for forward compatability")
+6.8/features/setup-gitlabci:
+    e3d6b89cf0871f84604136f540fa81d23efd2b29 ("gitlab-ci: Update AMD SOF firmware blobs")
+6.8/features/steamdeck-mfd:
+    5a4fb48df06bfb511b697e3ea343fb4ceed0fb9a ("mfd: steamdeck: Expose controller board power in sysfs")
+6.8/features/tsc:
+    fb6d13584d4a4866506176788ca20fea5500e2a3 ("x86: revert extra time added to check for tsc wraps")
+6.8/features/usb:
+    bef26b714d539eb2c0792801d02c027cf42dfafb ("usb: dwc3: Fix "linux,extcon-name"")
+6.8/features/wifi:
+    a232fe28c99fb1c541ea5fbd85e943515a2f28af ("[NOT-FOR-UPSTREAM] wifi: ath11k: Rename QCA2066 fw dir to QCA206X")
+6.8/features/hid:
+    6a9d90b463995990b1588743e44d79b011d6e1fa ("uinput: Allow uinput_request_submit wait interrupting")
