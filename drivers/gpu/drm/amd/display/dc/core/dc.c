@@ -4105,6 +4105,43 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 	return success;
 }
 
+void dc_resource_state_copy_construct(
+		const struct dc_state *src_ctx,
+		struct dc_state *dst_ctx)
+{
+	int i, j;
+	struct kref refcount = dst_ctx->refcount;
+
+	*dst_ctx = *src_ctx;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *cur_pipe = &dst_ctx->res_ctx.pipe_ctx[i];
+
+		if (cur_pipe->top_pipe)
+			cur_pipe->top_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
+
+		if (cur_pipe->bottom_pipe)
+			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
+
+		if (cur_pipe->next_odm_pipe)
+			cur_pipe->next_odm_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
+
+		if (cur_pipe->prev_odm_pipe)
+			cur_pipe->prev_odm_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
+	}
+
+	for (i = 0; i < dst_ctx->stream_count; i++) {
+		dc_stream_retain(dst_ctx->streams[i]);
+		for (j = 0; j < dst_ctx->stream_status[i].plane_count; j++)
+			dc_plane_state_retain(
+				dst_ctx->stream_status[i].plane_states[j]);
+	}
+
+	/* context refcount should not be overridden */
+	dst_ctx->refcount = refcount;
+
+}
+
 /**
  * commit_minimal_transition_state - Create a transition pipe split state
  *
@@ -4126,13 +4163,21 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
-	struct dc_state *transition_context;
-	struct pipe_split_policy_backup policy;
+	struct dc_state *transition_context = dc_state_create		(dc);
+	enum pipe_split_policy tmp_mpc_policy;
+	bool temp_dynamic_odm_policy;
+	bool temp_subvp_policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 	unsigned int pipe_in_use = 0;
 	bool subvp_in_use = false;
-	bool odm_in_use = false;
+
+	if (!transition_context)
+		return false;
+	/* Setup:
+	 * Store the current ODM and MPC config in some temp variables to be
+	 * restored after we commit the transition state.
+	 */
 
 	/* check current pipes in use*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -4149,19 +4194,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe->stream && dc_state_get_pipe_subvp_type(dc->current_state, pipe) == SUBVP_PHANTOM) {
-			subvp_in_use = true;
-			break;
-		}
-	}
-
-	/* If ODM is enabled and we are adding or removing planes from any ODM
-	 * pipe, we must use the minimal transition.
-	 */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream && pipe->next_odm_pipe) {
-			odm_in_use = true;
+			subvp_in_use = true;	
 			break;
 		}
 	}
@@ -4172,24 +4205,76 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	 * call it again. Otherwise return true to skip.
 	 *
 	 * Reduce the scenarios to use dc_commit_state_no_check in the stage of flip. Especially
+	 * enter/exit MPO when DCN still have enou							gh resources.
+	 */
+	if (pipe_in_use != dc->res_pool->pipe_count && !subvp_in_use) {
+		dc_state_release(transition_context);
+		return true;
+	}
+
+	/* check current pipes in use*/
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &transition_base_context->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state)
+			pipe_in_use++;
+	}
+
+	/* When the OS add a new surface if we have been used all of pipes with odm combine
+	 * and mpc split feature, it need use commit_minimal_transition_state to transition safely.
+	 * After OS exit MPO, it will back to use odm and mpc split with all of pipes, we need
+	 * call it again. Otherwise return true to skip.
+	 *
+	 * Reduce the scenarios to use dc_commit_state_no_check in the stage of flip. Especially
 	 * enter/exit MPO when DCN still have enough resources.
 	 */
-	if (pipe_in_use != dc->res_pool->pipe_count && !subvp_in_use && !odm_in_use)
+	if (pipe_in_use != dc->res_pool->pipe_count) {
+		dc_state_release(transition_context);
 		return true;
-
-	DC_LOG_DC("%s base = %s state, reason = %s\n", __func__,
-			dc->current_state == transition_base_context ? "current" : "new",
-			subvp_in_use ? "Subvp In Use" :
-			odm_in_use ? "ODM in Use" :
-			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID ? "MPC in Use" :
-			"Unknown");
-
-	transition_context = create_minimal_transition_state(dc,
-			transition_base_context, &policy);
-	if (transition_context) {
-		ret = dc_commit_state_no_check(dc, transition_context);
-		release_minimal_transition_state(dc, transition_context, &policy);
 	}
+
+	if (!dc->config.is_vmin_only_asic) {
+		tmp_mpc_policy = dc->debug.pipe_split_policy;
+		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	}
+
+	temp_dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
+	dc->debug.enable_single_display_2to1_odm_policy = false;
+
+	temp_subvp_policy = dc->debug.force_disable_subvp;
+	dc->debug.force_disable_subvp = true;
+
+	dc_resource_state_copy_construct(transition_base_context, transition_context);
+
+	/* commit minimal state */
+	if (dc->res_pool->funcs->validate_bandwidth(dc, transition_context, false)) {
+		for (i = 0; i < transition_context->stream_count; i++) {
+			struct dc_stream_status *stream_status = &transition_context->stream_status[i];
+
+			for (j = 0; j < stream_status->plane_count; j++) {
+				struct dc_plane_state *plane_state = stream_status->plane_states[j];
+
+				/* force vsync flip when reconfiguring pipes to prevent underflow
+				 * and corruption
+				 */
+				plane_state->flip_immediate = false;
+			}
+		}
+
+		ret = dc_commit_state_no_check(dc, transition_context);
+	}
+
+	/* always release as dc_commit_state_no_check retains in good case */
+	dc_state_release(transition_context);
+
+	/* TearDown:
+	 * Restore original configuration for ODM and MPO.
+	 */
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = tmp_mpc_policy;
+
+	dc->debug.enable_single_display_2to1_odm_policy = temp_dynamic_odm_policy;
+	dc->debug.force_disable_subvp = temp_subvp_policy;
 
 	if (ret != DC_OK) {
 		/* this should never happen */
