@@ -2349,6 +2349,7 @@ struct wmi_init_cmd {
 	u32 num_host_mem_chunks;
 } __packed;
 
+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT       BIT(0)
 #define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64 BIT(5)
 #define WMI_RSRC_CFG_FLAG2_CALC_NEXT_DTIM_COUNT_SET BIT(9)
 #define WMI_RSRC_CFG_FLAG1_ACK_RSSI BIT(18)
@@ -5738,6 +5739,12 @@ struct target_resource_config {
 	u8 is_reg_cc_ext_event_supported;
 	u32 ema_max_vap_cnt;
 	u32 ema_max_profile_period;
+	u32 max_bssid_indicator;
+	u32 ul_resp_config;
+	u32 msdu_flow_override_config0;
+	u32 msdu_flow_override_config1;
+	u32 flags2;
+	u32 host_service_flags;
 };
 
 enum wmi_debug_log_param {
@@ -6359,6 +6366,29 @@ enum wmi_sta_keepalive_method {
 
 const void **ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab,
 					struct sk_buff *skb, gfp_t gfp);
+
+#define UNIT_TEST_MAX_NUM_ARGS    8
+
+struct unit_test_cmd {
+	u32 vdev_id;
+	u32 module_id;
+	u32 num_args;
+	u32 args[UNIT_TEST_MAX_NUM_ARGS];
+};
+
+struct wmi_unit_test_cmd_fixed_param {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 module_id;
+	u32 num_args;
+	u32 diag_token;
+	/**
+	 * TLV (tag length value) parameters follow the wmi_unit_test_cmd_fixed_param
+	 * structure. The TLV's are:
+	 *     u32 args[];
+	 */
+} __packed;
+
 int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
 			u32 cmd_id);
 struct sk_buff *ath11k_wmi_alloc_skb(struct ath11k_wmi_base *wmi_sc, u32 len);
@@ -6547,5 +6577,6 @@ bool ath11k_wmi_supports_6ghz_cc_ext(struct ath11k *ar);
 int ath11k_wmi_send_vdev_set_tpc_power(struct ath11k *ar,
 				       u32 vdev_id,
 				       struct ath11k_reg_tpc_power_info *param);
+int ath11k_wmi_set_unit_test(struct ath11k *ar, struct unit_test_cmd *unit_test);
 
 #endif

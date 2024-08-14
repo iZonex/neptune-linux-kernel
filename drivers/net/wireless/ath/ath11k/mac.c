@@ -24,6 +24,7 @@
 #include "debugfs_sta.h"
 #include "hif.h"
 #include "wow.h"
+#include "unitest.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -253,6 +254,10 @@ static const u32 ath11k_smps_map[] = {
 	[WLAN_HT_CAP_SM_PS_DYNAMIC] = WMI_PEER_SMPS_DYNAMIC,
 	[WLAN_HT_CAP_SM_PS_INVALID] = WMI_PEER_SMPS_PS_NONE,
 	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_NONE,
+};
+
+static struct wiphy_vendor_command ath11k_vendor_cmds[] = {
+	ath11k_unit_test_command,
 };
 
 enum nl80211_he_ru_alloc ath11k_mac_phy_he_ru_to_nl80211_he_ru_alloc(u16 ru_phy)
@@ -3058,6 +3063,27 @@ static bool ath11k_mac_vif_recalc_sta_he_txbf(struct ath11k *ar,
 			hemode |= FIELD_PREP(HE_MODE_SU_TX_BFER, HE_SU_BFER_ENABLE);
 	}
 
+	ath11k_info(ar->ab, "mac0-5 cap %x-%x-%x-%x-%x-%x\n",
+		he_cap_elem.mac_cap_info[0],
+		he_cap_elem.mac_cap_info[1],
+		he_cap_elem.mac_cap_info[2],
+		he_cap_elem.mac_cap_info[3],
+		he_cap_elem.mac_cap_info[4],
+		he_cap_elem.mac_cap_info[5]);
+	ath11k_info(ar->ab, "phy0-5 cap %x-%x-%x-%x-%x-%x\n",
+		he_cap_elem.phy_cap_info[0],
+		he_cap_elem.phy_cap_info[1],
+		he_cap_elem.phy_cap_info[2],
+		he_cap_elem.phy_cap_info[3],
+		he_cap_elem.phy_cap_info[4],
+		he_cap_elem.phy_cap_info[5]);
+	ath11k_info(ar->ab, "phy6-10 cap %x-%x-%x-%x-%x\n",
+		he_cap_elem.phy_cap_info[6],
+		he_cap_elem.phy_cap_info[7],
+		he_cap_elem.phy_cap_info[8],
+		he_cap_elem.phy_cap_info[9],
+		he_cap_elem.phy_cap_info[10]);
+	ath11k_info(ar->ab, "WMI_VDEV_PARAM_SET_HEMU_MODE 3 0x%x\n", hemode);
 	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id, param, hemode);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to submit vdev param txbf 0x%x: %d\n",
@@ -5329,8 +5355,6 @@ static int ath11k_mac_set_txbf_conf(struct ath11k_vif *arvif)
 	if (vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE)) {
 		nsts = vht_cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 		nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-		if (nsts > (ar->num_rx_chains - 1))
-			nsts = ar->num_rx_chains - 1;
 		value |= SM(nsts, WMI_TXBF_STS_CAP_OFFSET);
 	}
 
@@ -5371,7 +5395,7 @@ static int ath11k_mac_set_txbf_conf(struct ath11k_vif *arvif)
 static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 {
 	bool subfer, subfee;
-	int sound_dim = 0, nsts = 0;
+	int sound_dim = 0;
 
 	subfer = !!(*vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE));
 	subfee = !!(*vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE));
@@ -5379,11 +5403,6 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 	if (ar->num_tx_chains < 2) {
 		*vht_cap &= ~(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
 		subfer = false;
-	}
-
-	if (ar->num_rx_chains < 2) {
-		*vht_cap &= ~(IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE);
-		subfee = false;
 	}
 
 	/* If SU Beaformer is not set, then disable MU Beamformer Capability */
@@ -5398,9 +5417,7 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
 	*vht_cap &= ~IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
 
-	nsts = (*vht_cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK);
-	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-	*vht_cap &= ~IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+	/* TODO: Need to check invalid STS and Sound_dim values set by FW? */
 
 	/* Enable Sounding Dimension Field only if SU BF is enabled */
 	if (subfer) {
@@ -5412,15 +5429,9 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 		*vht_cap |= sound_dim;
 	}
 
-	/* Enable Beamformee STS Field only if SU BF is enabled */
-	if (subfee) {
-		if (nsts > (ar->num_rx_chains - 1))
-			nsts = ar->num_rx_chains - 1;
-
-		nsts <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-		nsts &=  IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
-		*vht_cap |= nsts;
-	}
+	/* Use the STS advertised by FW unless SU Beamformee is not supported*/
+	if (!subfee)
+		*vht_cap &= ~(IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK);
 }
 
 static struct ieee80211_sta_vht_cap
@@ -10243,6 +10254,8 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->wiphy->iftype_ext_capab = ath11k_iftypes_ext_capa;
 	ar->hw->wiphy->num_iftype_ext_capab =
 		ARRAY_SIZE(ath11k_iftypes_ext_capa);
+	ar->hw->wiphy->vendor_commands = ath11k_vendor_cmds;
+	ar->hw->wiphy->n_vendor_commands = ARRAY_SIZE(ath11k_vendor_cmds);
 
 	if (ar->supports_6ghz) {
 		wiphy_ext_feature_set(ar->hw->wiphy,
