@@ -8030,8 +8030,12 @@ static void update_freesync_state_on_stream(
 	struct amdgpu_dm_connector *aconn;
 	enum vrr_packet_type packet_type = PACKET_TYPE_VRR;
 
+	kprintf("A update_freesync_state_on_stream\n");
+
 	if (!new_stream)
 		return;
+
+	kprintf("B update_freesync_state_on_stream\n");
 
 	/*
 	 * TODO: Determine why min/max totals and vrefresh can be 0 here.
@@ -8041,8 +8045,19 @@ static void update_freesync_state_on_stream(
 	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
 		return;
 
+	kprintf("C update_freesync_state_on_stream\n");
+
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 	vrr_params = acrtc->dm_irq_params.vrr_params;
+
+	kprintf("C update_freesync_state_on_stream: vrr_params.supported -> %d\n", vrr_params.supported);
+	kprintf("C update_freesync_state_on_stream: vrr_params.send_info_frame -> %d\n", vrr_params.send_info_frame);
+	kprintf("C update_freesync_state_on_stream: vrr_params.state -> %d\n", vrr_params.state);
+	kprintf("C update_freesync_state_on_stream: vrr_params.min_refresh_in_uhz -> %d\n", vrr_params.min_refresh_in_uhz);
+	kprintf("C update_freesync_state_on_stream: vrr_params.max_duration_in_us -> %d\n", vrr_params.max_duration_in_us);
+	kprintf("C update_freesync_state_on_stream: vrr_params.max_refresh_in_uhz -> %d\n", vrr_params.max_refresh_in_uhz);
+	kprintf("C update_freesync_state_on_stream: vrr_params.min_duration_in_us -> %d\n", vrr_params.min_duration_in_us);
+	kprintf("C update_freesync_state_on_stream: vrr_params.fixed_refresh_in_uhz -> %d\n", vrr_params.fixed_refresh_in_uhz);
 
 	if (surface) {
 		mod_freesync_handle_preflip(
@@ -8175,6 +8190,7 @@ static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
 	bool new_vrr_active = amdgpu_dm_crtc_vrr_active(new_state);
 
 	if (!old_vrr_active && new_vrr_active) {
+		kprintf("amdgpu_dm_handle_vrr_transition: VRR TRANSITIONED TO ON\n");
 		/* Transition VRR inactive -> active:
 		 * While VRR is active, we must not disable vblank irq, as a
 		 * reenable after disable would compute bogus vblank/pflip
@@ -8188,6 +8204,7 @@ static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
 		DRM_DEBUG_DRIVER("%s: crtc=%u VRR off->on: Get vblank ref\n",
 				 __func__, new_state->base.crtc->base.id);
 	} else if (old_vrr_active && !new_vrr_active) {
+		kprintf("amdgpu_dm_handle_vrr_transition: VRR TRANSITIONED TO OFF\n");
 		/* Transition VRR active -> inactive:
 		 * Allow vblank irq disable again for fixed refresh rate.
 		 */
@@ -9572,6 +9589,12 @@ static void get_freesync_config_for_crtc(
 					vrefresh >= aconnector->min_vfreq &&
 					vrefresh <= aconnector->max_vfreq;
 
+	kprintf("A get_freesync_config_for_crtc: new_crtc_state->vrr_supported -> %d\n", new_crtc_state->vrr_supported ? 1 : 0);
+	kprintf("A get_freesync_config_for_crtc: vrefresh -> %d\n", vrefresh);
+	kprintf("A get_freesync_config_for_crtc: aconnector->min_vfreq -> %d\n", aconnector->min_vfreq);
+	kprintf("A get_freesync_config_for_crtc: aconnector->max_vfreq -> %d\n", aconnector->max_vfreq);
+	kprintf("A get_freesync_config_for_crtc: new_crtc_state->freesync_config.state -> %d\n", new_crtc_state->freesync_config.state);
+
 	if (new_crtc_state->vrr_supported) {
 		new_crtc_state->stream->ignore_msa_timing_param = true;
 		fs_vid_mode = new_crtc_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
@@ -9593,6 +9616,12 @@ static void get_freesync_config_for_crtc(
 	}
 out:
 	new_crtc_state->freesync_config = config;
+
+	kprintf("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.state -> %d\n", new_crtc_state->freesync_config.state);
+	kprintf("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.fixed_refresh_in_uhz -> %d\n", new_crtc_state->freesync_config.fixed_refresh_in_uhz);
+	kprintf("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.vsif_supported -> %d\n", new_crtc_state->freesync_config.vsif_supported);
+	kprintf("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.ignore_msa_timing_param -> %d\n", new_crtc_state->freesync_config.ignore_msa_timing_param);
+	kprintf("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.btr -> %d\n", new_crtc_state->freesync_config.btr);
 }
 
 static void reset_freesync_config_for_crtc(
