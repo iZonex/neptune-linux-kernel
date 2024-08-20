@@ -414,6 +414,11 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		if (dc->optimized_required)
 			return false;
 
+	printk("dc_stream_adjust_vmin_vmax: adjust->v_total_max -> %d\n", adjust->v_total_max);
+	printk("dc_stream_adjust_vmin_vmax: adjust->v_total_mid -> %d\n", adjust->v_total_mid);
+	printk("dc_stream_adjust_vmin_vmax: adjust->v_total_mid_frame_num -> %d\n", adjust->v_total_mid_frame_num);
+	printk("dc_stream_adjust_vmin_vmax: adjust->v_total_min -> %d\n", adjust->v_total_min);
+
 	if (!memcmp(&stream->adjust, adjust, sizeof(*adjust)))
 		return true;
 

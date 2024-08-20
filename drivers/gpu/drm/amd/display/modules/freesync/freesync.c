@@ -269,10 +269,10 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	unsigned int max_render_time_in_us =
 			in_out_vrr->max_duration_in_us - in_out_vrr->btr.margin_in_us;
 
-	kprintf("apply_below_the_range: last_render_time_in_us: %d.\n", last_render_time_in_us);
-	kprintf("apply_below_the_range: in_out_vrr->btr.margin_in_us: %d.\n", in_out_vrr->btr.margin_in_us);
-	kprintf("apply_below_the_range: (last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2): %d.\n", (last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2));
-	kprintf("apply_below_the_range: max_render_time_in_us: %d.\n", max_render_time_in_us);
+	printk("apply_below_the_range: last_render_time_in_us: %d.\n", last_render_time_in_us);
+	printk("apply_below_the_range: in_out_vrr->btr.margin_in_us: %d.\n", in_out_vrr->btr.margin_in_us);
+	printk("apply_below_the_range: (last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2): %d.\n", (last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2));
+	printk("apply_below_the_range: max_render_time_in_us: %d.\n", max_render_time_in_us);
 
 	/* Program BTR */
 	if ((last_render_time_in_us + in_out_vrr->btr.margin_in_us / 2) < max_render_time_in_us) {
@@ -280,13 +280,13 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		if (in_out_vrr->btr.btr_active) {
 			in_out_vrr->btr.frame_counter = 0;
 			in_out_vrr->btr.btr_active = false;
-			kprintf("apply_below_the_range: Exiting Below the Range.\n");
+			printk("apply_below_the_range: Exiting Below the Range.\n");
 		}
 	} else if (last_render_time_in_us > (max_render_time_in_us + in_out_vrr->btr.margin_in_us / 2)) {
 		/* Enter Below the Range */
 		if (!in_out_vrr->btr.btr_active) {
 			in_out_vrr->btr.btr_active = true;
-			kprintf("apply_below_the_range: Entering Below the Range.\n");
+			printk("apply_below_the_range: Entering Below the Range.\n");
 		}
 	}
 
@@ -481,12 +481,12 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 static void determine_flip_interval_workaround_req(struct mod_vrr_params *in_vrr,
 		unsigned int curr_time_stamp_in_us)
 {
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.vsync_to_flip_in_us -> %d\n", in_vrr->flip_interval.vsync_to_flip_in_us);
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.v_update_timestamp_in_us -> %d\n", in_vrr->flip_interval.v_update_timestamp_in_us);
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_workaround_active -> %d\n", in_vrr->flip_interval.flip_interval_workaround_active);
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.vsyncs_between_flip -> %d\n", in_vrr->flip_interval.vsyncs_between_flip);
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_detect_counter -> %d\n", in_vrr->flip_interval.flip_interval_detect_counter);
-	kprintf("A determine_flip_interval_workaround_req: in_vrr->flip_interval.program_flip_interval_workaround -> %d\n", in_vrr->flip_interval.program_flip_interval_workaround);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.vsync_to_flip_in_us -> %d\n", in_vrr->flip_interval.vsync_to_flip_in_us);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.v_update_timestamp_in_us -> %d\n", in_vrr->flip_interval.v_update_timestamp_in_us);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_workaround_active -> %d\n", in_vrr->flip_interval.flip_interval_workaround_active);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.vsyncs_between_flip -> %d\n", in_vrr->flip_interval.vsyncs_between_flip);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_detect_counter -> %d\n", in_vrr->flip_interval.flip_interval_detect_counter);
+	printk("A determine_flip_interval_workaround_req: in_vrr->flip_interval.program_flip_interval_workaround -> %d\n", in_vrr->flip_interval.program_flip_interval_workaround);
 
 	in_vrr->flip_interval.vsync_to_flip_in_us = curr_time_stamp_in_us -
 			in_vrr->flip_interval.v_update_timestamp_in_us;
@@ -519,12 +519,12 @@ static void determine_flip_interval_workaround_req(struct mod_vrr_params *in_vrr
 
 	in_vrr->flip_interval.vsyncs_between_flip = 0;
 
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.vsync_to_flip_in_us -> %d\n", in_vrr->flip_interval.vsync_to_flip_in_us);
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.v_update_timestamp_in_us -> %d\n", in_vrr->flip_interval.v_update_timestamp_in_us);
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_workaround_active -> %d\n", in_vrr->flip_interval.flip_interval_workaround_active);
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.vsyncs_between_flip -> %d\n", in_vrr->flip_interval.vsyncs_between_flip);
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_detect_counter -> %d\n", in_vrr->flip_interval.flip_interval_detect_counter);
-	kprintf("B determine_flip_interval_workaround_req: in_vrr->flip_interval.program_flip_interval_workaround -> %d\n", in_vrr->flip_interval.program_flip_interval_workaround);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.vsync_to_flip_in_us -> %d\n", in_vrr->flip_interval.vsync_to_flip_in_us);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.v_update_timestamp_in_us -> %d\n", in_vrr->flip_interval.v_update_timestamp_in_us);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_workaround_active -> %d\n", in_vrr->flip_interval.flip_interval_workaround_active);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.vsyncs_between_flip -> %d\n", in_vrr->flip_interval.vsyncs_between_flip);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.flip_interval_detect_counter -> %d\n", in_vrr->flip_interval.flip_interval_detect_counter);
+	printk("B determine_flip_interval_workaround_req: in_vrr->flip_interval.program_flip_interval_workaround -> %d\n", in_vrr->flip_interval.program_flip_interval_workaround);
 
 }
 
@@ -1164,16 +1164,16 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
-	kprintf("A mod_freesync_handle_preflip: in_out_vrr->supported -> %d\n", in_out_vrr->supported);
-	kprintf("A mod_freesync_handle_preflip: in_out_vrr->state -> %d\n", in_out_vrr->state);
+	printk("A mod_freesync_handle_preflip: in_out_vrr->supported -> %d\n", in_out_vrr->supported);
+	printk("A mod_freesync_handle_preflip: in_out_vrr->state -> %d\n", in_out_vrr->state);
 	if (in_out_vrr->supported &&
 			in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
 
 		last_render_time_in_us = curr_time_stamp_in_us -
 				plane->time.prev_update_time_in_us;
 
-		kprintf("A mod_freesync_handle_preflip: last_render_time_in_us -> %d\n", last_render_time_in_us);
-		kprintf("A mod_freesync_handle_preflip: in_out_vrr->btr.btr_enabled -> %d\n", in_out_vrr->btr.btr_enabled);
+		printk("A mod_freesync_handle_preflip: last_render_time_in_us -> %d\n", last_render_time_in_us);
+		printk("A mod_freesync_handle_preflip: in_out_vrr->btr.btr_enabled -> %d\n", in_out_vrr->btr.btr_enabled);
 
 		if (in_out_vrr->btr.btr_enabled) {
 			apply_below_the_range(core_freesync,
@@ -1201,8 +1201,12 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 	unsigned int cur_timestamp_in_us;
 	unsigned long long cur_tick;
 
+	printk("A mod_freesync_handle_v_update\n");
+
 	if ((mod_freesync == NULL) || (stream == NULL) || (in_out_vrr == NULL))
 		return;
+
+	printk("B mod_freesync_handle_v_update\n");
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
@@ -1215,6 +1219,10 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 
 	in_out_vrr->flip_interval.vsyncs_between_flip++;
 	in_out_vrr->flip_interval.v_update_timestamp_in_us = cur_timestamp_in_us;
+
+	printk("C mod_freesync_handle_v_update: in_out_vrr->state -> %d\n", in_out_vrr->state);
+	printk("C mod_freesync_handle_v_update: in_out_vrr->flip_interval.vsyncs_between_flip -> %d\n", in_out_vrr->flip_interval.vsyncs_between_flip);
+	printk("C mod_freesync_handle_v_update: in_out_vrr->flip_interval.v_update_timestamp_in_us -> %d\n", in_out_vrr->flip_interval.v_update_timestamp_in_us);
 
 	if (in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE &&
 			(in_out_vrr->flip_interval.flip_interval_workaround_active ||

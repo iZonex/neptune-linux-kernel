@@ -40,6 +40,8 @@ void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
+	printk("amdgpu_dm_crtc_handle_vblank\n");
+
 	drm_crtc_handle_vblank(crtc);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -64,6 +66,7 @@ bool amdgpu_dm_crtc_modeset_required(struct drm_crtc_state *crtc_state,
 bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc)
 
 {
+	printk("amdgpu_dm_crtc_vrr_active_irq: acrtc->dm_irq_params.freesync_config.state -> %d\n". acrtc->dm_irq_params.freesync_config.state);
 	return acrtc->dm_irq_params.freesync_config.state ==
 		       VRR_STATE_ACTIVE_VARIABLE ||
 	       acrtc->dm_irq_params.freesync_config.state ==
@@ -91,6 +94,7 @@ int amdgpu_dm_crtc_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 
 bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state)
 {
+	printk("amdgpu_dm_crtc_vrr_active: dm_state->freesync_config.state -> %d\n", dm_state->freesync_config.state);
 	return dm_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE ||
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
 }
