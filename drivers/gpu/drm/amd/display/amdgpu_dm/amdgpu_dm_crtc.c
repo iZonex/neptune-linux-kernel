@@ -66,7 +66,7 @@ bool amdgpu_dm_crtc_modeset_required(struct drm_crtc_state *crtc_state,
 bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc)
 
 {
-	printk("amdgpu_dm_crtc_vrr_active_irq: acrtc->dm_irq_params.freesync_config.state -> %d\n". acrtc->dm_irq_params.freesync_config.state);
+	printk("amdgpu_dm_crtc_vrr_active_irq: acrtc->dm_irq_params.freesync_config.state -> %d\n", acrtc->dm_irq_params.freesync_config.state);
 	return acrtc->dm_irq_params.freesync_config.state ==
 		       VRR_STATE_ACTIVE_VARIABLE ||
 	       acrtc->dm_irq_params.freesync_config.state ==

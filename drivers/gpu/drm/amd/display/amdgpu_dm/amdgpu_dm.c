@@ -9622,7 +9622,7 @@ out:
 	printk("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.state -> %d\n", new_crtc_state->freesync_config.state);
 	printk("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.fixed_refresh_in_uhz -> %d\n", new_crtc_state->freesync_config.fixed_refresh_in_uhz);
 	printk("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.vsif_supported -> %d\n", new_crtc_state->freesync_config.vsif_supported);
-	printk("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.ignore_msa_timing_param -> %d\n", new_crtc_state->freesync_config.ignore_msa_timing_param);
+	printk("B get_freesync_config_for_crtc: new_crtc_state->stream->ignore_msa_timing_param -> %d\n", new_crtc_state->stream->ignore_msa_timing_param);
 	printk("B get_freesync_config_for_crtc: new_crtc_state->freesync_config.btr -> %d\n", new_crtc_state->freesync_config.btr);
 }
 
