@@ -327,7 +327,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		 * the render time interval - take floor of this value
 		 */
 		mid_point_frames_floor = last_render_time_in_us /
-				in_out_vrr->btr.mid_point_i	n_us;
+				in_out_vrr->btr.mid_point_in_us;
 
 		if (mid_point_frames_floor > 0) {
 
