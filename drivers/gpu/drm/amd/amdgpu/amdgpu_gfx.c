@@ -642,7 +642,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
 
-	if (!adev->enable_mes) {
+	if (!adev->mes.enable_legacy_queue_map) {
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_compute_rings;
 			kiq->pmf->kiq_map_queues(kiq_ring,
@@ -655,7 +655,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	if (r)
 		DRM_ERROR("KCQ enable failed\n");
 
-	if (adev->enable_mes) {
+	if (adev->mes.enable_legacy_queue_map) {
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_compute_rings;
 			r = amdgpu_mes_map_legacy_queue(adev,
@@ -683,7 +683,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	if (adev->enable_mes) {
+	if (adev->mes.enable_legacy_queue_map) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			r = amdgpu_mes_map_legacy_queue(adev,
