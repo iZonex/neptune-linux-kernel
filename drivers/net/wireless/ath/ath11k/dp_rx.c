@@ -1877,8 +1877,7 @@ static void ath11k_dp_rx_h_csum_offload(struct ath11k *ar, struct sk_buff *msdu)
 			  CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
 }
 
-static int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar,
-				       enum hal_encrypt_type enctype)
+int ath11k_dp_rx_crypto_mic_len(struct ath11k *ar, enum hal_encrypt_type enctype)
 {
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
@@ -2547,7 +2546,7 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
 	lrx_desc = (struct hal_rx_desc *)last_buf->data;
 	rx_attention = ath11k_dp_rx_get_attention(ab, lrx_desc);
 	if (!ath11k_dp_rx_h_attn_msdu_done(rx_attention)) {
-		ath11k_warn(ab, "msdu_done bit in attention is not set\n");
+		ath11k_dbg(ab, ATH11K_DBG_DATA, "msdu_done bit in attention is not set\n");
 		ret = -EIO;
 		goto free_out;
 	}
