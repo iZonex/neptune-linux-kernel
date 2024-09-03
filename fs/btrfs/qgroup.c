@@ -1342,16 +1342,10 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	lockdep_assert_held_write(&fs_info->subvol_sem);
 
 	/*
-	 * Lock the cleaner mutex to prevent races with concurrent relocation,
-	 * because relocation may be building backrefs for blocks of the quota
-	 * root while we are deleting the root. This is like dropping fs roots
-	 * of deleted snapshots/subvolumes, we need the same protection.
-	 *
-	 * This also prevents races between concurrent tasks trying to disable
-	 * quotas, because we will unlock and relock qgroup_ioctl_lock across
-	 * BTRFS_FS_QUOTA_ENABLED changes.
+	 * Relocation will mess with backrefs, so make sure we have the
+	 * cleaner_mutex held to protect us from relocate.
 	 */
-	mutex_lock(&fs_info->cleaner_mutex);
+	lockdep_assert_held(&fs_info->cleaner_mutex);
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (!fs_info->quota_root)
@@ -1373,9 +1367,13 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	clear_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 	btrfs_qgroup_wait_for_completion(fs_info, false);
 
+	/*
+	 * We have nothing held here and no trans handle, just return the error
+	 * if there is one.
+	 */
 	ret = flush_reservations(fs_info);
 	if (ret)
-		goto out_unlock_cleaner;
+		return ret;
 
 	/*
 	 * 1 For the root item
@@ -1439,9 +1437,6 @@ out:
 		btrfs_end_transaction(trans);
 	else if (trans)
 		ret = btrfs_commit_transaction(trans);
-out_unlock_cleaner:
-	mutex_unlock(&fs_info->cleaner_mutex);
-
 	return ret;
 }
 
@@ -2959,11 +2954,6 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 				ctx.roots = NULL;
 			}
 
-			/* Free the reserved data space */
-			btrfs_qgroup_free_refroot(fs_info,
-					record->data_rsv_refroot,
-					record->data_rsv,
-					BTRFS_QGROUP_RSV_DATA);
 			/*
 			 * Use BTRFS_SEQ_LAST as time_seq to do special search,
 			 * which doesn't lock tree or delayed_refs and search
@@ -2987,6 +2977,11 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 			record->old_roots = NULL;
 			new_roots = NULL;
 		}
+		/* Free the reserved data space */
+		btrfs_qgroup_free_refroot(fs_info,
+				record->data_rsv_refroot,
+				record->data_rsv,
+				BTRFS_QGROUP_RSV_DATA);
 cleanup:
 		ulist_free(record->old_roots);
 		ulist_free(new_roots);
@@ -3046,6 +3041,59 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
 		qgroup_mark_inconsistent(fs_info);
 
 	return ret;
+}
+
+int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
+			       struct btrfs_qgroup_inherit *inherit,
+			       size_t size)
+{
+	if (!btrfs_qgroup_enabled(fs_info))
+		return 0;
+	if (inherit->flags & ~BTRFS_QGROUP_INHERIT_FLAGS_SUPP)
+		return -EOPNOTSUPP;
+	if (size < sizeof(*inherit) || size > PAGE_SIZE)
+		return -EINVAL;
+
+	/*
+	 * In the past we allowed btrfs_qgroup_inherit to specify to copy
+	 * rfer/excl numbers directly from other qgroups.  This behavior has
+	 * been disabled in userspace for a very long time, but here we should
+	 * also disable it in kernel, as this behavior is known to mark qgroup
+	 * inconsistent, and a rescan would wipe out the changes anyway.
+	 *
+	 * Reject any btrfs_qgroup_inherit with num_ref_copies or num_excl_copies.
+	 */
+	if (inherit->num_ref_copies > 0 || inherit->num_excl_copies > 0)
+		return -EINVAL;
+
+	if (inherit->num_qgroups > PAGE_SIZE)
+		return -EINVAL;
+
+	if (size != struct_size(inherit, qgroups, inherit->num_qgroups))
+		return -EINVAL;
+
+	/*
+	 * Now check all the remaining qgroups, they should all:
+	 *
+	 * - Exist
+	 * - Be higher level qgroups.
+	 */
+	for (int i = 0; i < inherit->num_qgroups; i++) {
+		struct btrfs_qgroup *qgroup;
+		u64 qgroupid = inherit->qgroups[i];
+
+		if (btrfs_qgroup_level(qgroupid) == 0)
+			return -EINVAL;
+
+		spin_lock(&fs_info->qgroup_lock);
+		qgroup = find_qgroup_rb(fs_info, qgroupid);
+		if (!qgroup) {
+			spin_unlock(&fs_info->qgroup_lock);
+			return -ENOENT;
+		}
+		spin_unlock(&fs_info->qgroup_lock);
+	}
+	return 0;
 }
 
 static int qgroup_auto_inherit(struct btrfs_fs_info *fs_info,
@@ -4381,6 +4429,8 @@ void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
 				      BTRFS_QGROUP_RSV_META_PREALLOC);
 	trace_qgroup_meta_convert(root, num_bytes);
 	qgroup_convert_meta(fs_info, root->root_key.objectid, num_bytes);
+	if (!sb_rdonly(fs_info->sb))
+		add_root_meta_rsv(root, num_bytes, BTRFS_QGROUP_RSV_META_PERTRANS);
 }
 
 /*
