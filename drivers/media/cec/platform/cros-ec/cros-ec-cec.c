@@ -295,6 +295,7 @@ struct cec_dmi_match {
 };
 
 static const char *const port_b_conns[] = { "Port B", NULL };
+static const char *const port_c_conns[] = { "Port C", NULL };
 static const char *const port_db_conns[] = { "Port D", "Port B", NULL };
 static const char *const port_ba_conns[] = { "Port B", "Port A", NULL };
 static const char *const port_d_conns[] = { "Port D", NULL };
@@ -326,6 +327,8 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	{ "Google", "Taranza", "0000:00:02.0", port_db_conns },
 	/* Google Dexi */
 	{ "Google", "Dexi", "0000:00:02.0", port_db_conns },
+	/* AMD Lilac */
+	{ "AMD", "Lilac", "0000:06:00.0", port_c_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
