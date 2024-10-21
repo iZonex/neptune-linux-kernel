@@ -4,6 +4,7 @@
  * Copyright (c) 2011-2014, Intel Corporation.
  */
 
+#include "linux/list.h"
 #include <linux/acpi.h>
 #include <linux/async.h>
 #include <linux/blkdev.h>
@@ -159,6 +160,7 @@ struct nvme_dev {
 	unsigned int nr_allocated_queues;
 	unsigned int nr_write_queues;
 	unsigned int nr_poll_queues;
+	struct workqueue_struct *free_prps_wq;
 };
 
 static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
@@ -181,6 +183,14 @@ static inline struct nvme_dev *to_nvme_dev(struct nvme_ctrl *ctrl)
 {
 	return container_of(ctrl, struct nvme_dev, ctrl);
 }
+
+
+struct prp_free_list {
+	struct list_head entry;
+	s8 nr_allocations;
+	void *addr[NVME_MAX_NR_ALLOCATIONS];
+	dma_addr_t dma_addr[NVME_MAX_NR_ALLOCATIONS];
+};
 
 /*
  * An NVM Express queue.  Each device has at least two (one for admin
@@ -214,6 +224,10 @@ struct nvme_queue {
 	__le32 *dbbuf_sq_ei;
 	__le32 *dbbuf_cq_ei;
 	struct completion delete_done;
+	struct list_head free_list;
+	spinlock_t free_list_lock;
+	mempool_t *free_list_pool;
+	struct delayed_work free_prps_dwork;
 };
 
 union nvme_descriptor {
@@ -521,12 +535,98 @@ static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req,
 	return true;
 }
 
+static void free_prps( struct nvme_queue *nvmeq, struct prp_free_list *free_list)
+{
+	struct dma_pool *pool = nvmeq->dev->prp_page_pool;
+	int nr_allocations = free_list->nr_allocations;
+	int i;
+
+	if (free_list->nr_allocations == 0) {
+		pool = nvmeq->dev->prp_small_pool;
+		nr_allocations = 1;
+	}
+
+	for (i = 0; i < nr_allocations; i++)
+		dma_pool_free(pool, free_list->addr[i], free_list->dma_addr[i]);
+
+	mempool_free(free_list, nvmeq->free_list_pool);
+}
+
+static void timeout_free_prps(struct work_struct *dwork)
+{
+	struct nvme_queue *nvmeq = container_of(dwork, struct nvme_queue, free_prps_dwork.work);
+	struct prp_free_list *free_list, *tmp;
+	unsigned long flags;
+	LIST_HEAD(tmp_list);
+
+	spin_lock_irqsave(&nvmeq->free_list_lock, flags);
+	list_replace_init(&nvmeq->free_list, &tmp_list);
+	spin_unlock_irqrestore(&nvmeq->free_list_lock, flags);
+
+	list_for_each_entry_safe(free_list, tmp, &tmp_list, entry)
+		free_prps(nvmeq, free_list);
+}
+
+static int defer_free_prps(struct nvme_dev *dev, struct request *req)
+{
+	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
+	struct prp_free_list *free_list;
+	const int last_prp = NVME_CTRL_PAGE_SIZE / sizeof(__le64) - 1;
+	unsigned long flags;
+
+	if (!list_empty(&nvmeq->free_list)) {
+		spin_lock_irqsave(&nvmeq->free_list_lock, flags);
+		free_list = list_first_entry(&nvmeq->free_list, struct prp_free_list, entry);
+		list_del(&free_list->entry);
+		spin_unlock_irqrestore(&nvmeq->free_list_lock, flags);
+		free_prps(nvmeq, free_list);
+	}
+
+
+	free_list = mempool_alloc(nvmeq->free_list_pool, GFP_ATOMIC);
+	if (!free_list)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&free_list->entry);
+	free_list->nr_allocations = iod->nr_allocations;
+
+	if (iod->nr_allocations <= 1) {
+		free_list->addr[0] = iod->list[0].sg_list;
+		free_list->dma_addr[0] = iod->first_dma;
+	} else {
+		dma_addr_t dma_addr = iod->first_dma;
+		int i;
+		for (i = 0; i < iod->nr_allocations; i++) {
+			__le64 *prp_list = iod->list[i].prp_list;
+			dma_addr_t next_dma_addr = le64_to_cpu(prp_list[last_prp]);
+			free_list->addr[i] = prp_list;
+			free_list->dma_addr[i] = dma_addr;
+			dma_addr = next_dma_addr;
+		}
+	}
+	spin_lock_irqsave(&nvmeq->free_list_lock, flags);
+	list_add_tail(&free_list->entry, &nvmeq->free_list);
+	spin_unlock_irqrestore(&nvmeq->free_list_lock, flags);
+
+	mod_delayed_work(dev->free_prps_wq, &nvmeq->free_prps_dwork, msecs_to_jiffies(100));
+
+	return 0;
+}
+
 static void nvme_free_prps(struct nvme_dev *dev, struct request *req)
 {
 	const int last_prp = NVME_CTRL_PAGE_SIZE / sizeof(__le64) - 1;
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	dma_addr_t dma_addr = iod->first_dma;
-	int i;
+	int i, ret;
+
+	/* TODO: add quirk to only do this if needed */
+	ret = defer_free_prps(dev, req);
+	if (!ret)
+		return;
+
+	dev_WARN_ONCE(dev->dev, ret, "Failed to defer freeing of prps");
 
 	for (i = 0; i < iod->nr_allocations; i++) {
 		__le64 *prp_list = iod->list[i].prp_list;
@@ -550,15 +650,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 	WARN_ON_ONCE(!iod->sgt.nents);
 
 	dma_unmap_sgtable(dev->dev, &iod->sgt, rq_dma_dir(req), 0);
-
-	if (iod->nr_allocations == 0)
-		dma_pool_free(dev->prp_small_pool, iod->list[0].sg_list,
-			      iod->first_dma);
-	else if (iod->nr_allocations == 1)
-		dma_pool_free(dev->prp_page_pool, iod->list[0].sg_list,
-			      iod->first_dma);
-	else
-		nvme_free_prps(dev, req);
+	nvme_free_prps(dev, req);
 	mempool_free(iod->sgt.sgl, dev->iod_mempool);
 }
 
@@ -1399,6 +1491,8 @@ disable:
 
 static void nvme_free_queue(struct nvme_queue *nvmeq)
 {
+	flush_delayed_work(&nvmeq->free_prps_dwork);
+	mempool_destroy(nvmeq->free_list_pool);
 	dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
 				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
 	if (!nvmeq->sq_cmds)
@@ -1528,14 +1622,23 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 	nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(nvmeq),
 					 &nvmeq->cq_dma_addr, GFP_KERNEL);
 	if (!nvmeq->cqes)
-		goto free_nvmeq;
+		goto err_nomem;
 
 	if (nvme_alloc_sq_cmds(dev, nvmeq, qid))
-		goto free_cqdma;
+		goto err_nomem;
 
 	nvmeq->dev = dev;
 	spin_lock_init(&nvmeq->sq_lock);
 	spin_lock_init(&nvmeq->cq_poll_lock);
+	spin_lock_init(&nvmeq->free_list_lock);
+	INIT_LIST_HEAD(&nvmeq->free_list);
+	INIT_DELAYED_WORK(&nvmeq->free_prps_dwork, timeout_free_prps);
+	nvmeq->free_list_pool = mempool_create_node(2, mempool_kmalloc, mempool_kfree,
+						    (void*)sizeof(struct prp_free_list),
+						    GFP_KERNEL, dev_to_node(dev->dev));
+	if (!nvmeq->free_list_pool)
+		goto err_nomem;
+
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
 	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
@@ -1544,10 +1647,8 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 
 	return 0;
 
- free_cqdma:
-	dma_free_coherent(dev->dev, CQ_SIZE(nvmeq), (void *)nvmeq->cqes,
-			  nvmeq->cq_dma_addr);
- free_nvmeq:
+ err_nomem:
+	nvme_free_queue(nvmeq);
 	return -ENOMEM;
 }
 
@@ -2924,6 +3025,9 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 		return ERR_PTR(-ENOMEM);
 	INIT_WORK(&dev->ctrl.reset_work, nvme_reset_work);
 	mutex_init(&dev->shutdown_lock);
+	dev->free_prps_wq = alloc_workqueue(dev_name(&pdev->dev), WQ_MEM_RECLAIM, 0);
+	if (!dev->free_prps_wq)
+		goto out_free_dev;
 
 	dev->nr_write_queues = write_queues;
 	dev->nr_poll_queues = poll_queues;
@@ -2931,7 +3035,7 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 	dev->queues = kcalloc_node(dev->nr_allocated_queues,
 			sizeof(struct nvme_queue), GFP_KERNEL, node);
 	if (!dev->queues)
-		goto out_free_dev;
+		goto out_free_wq;
 
 	dev->dev = get_device(&pdev->dev);
 
@@ -2975,6 +3079,8 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 out_put_device:
 	put_device(dev->dev);
 	kfree(dev->queues);
+out_free_wq:
+	destroy_workqueue(dev->free_prps_wq);
 out_free_dev:
 	kfree(dev);
 	return ERR_PTR(ret);
@@ -3132,6 +3238,7 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_dev_remove_admin(dev);
 	nvme_dbbuf_dma_free(dev);
 	nvme_free_queues(dev, 0);
+	destroy_workqueue(dev->free_prps_wq);
 	mempool_destroy(dev->iod_mempool);
 	nvme_release_prp_pools(dev);
 	nvme_dev_unmap(dev);
