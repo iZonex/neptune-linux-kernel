@@ -232,7 +232,7 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Lisbon */
 	{ "Google", "Lisbon", "0000:00:02.0", "Port B" },
 	/* AMD Lilac */
-	{ "AMD", "Lilac", "0000:06:00.0", "Port C" },
+	{ "AMD", "Lilac", "0000:03:00.0", "Port C" },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
