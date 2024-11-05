@@ -576,6 +576,27 @@ static void nvme_print_sgl(struct scatterlist *sgl, int nents)
 	}
 }
 
+static void* quirk_dma_pool_alloc(struct nvme_dev *dev, struct dma_pool *pool, dma_addr_t *ret_dma, int nprps)
+{
+	__le64 *prp_list;
+	dma_addr_t prp_dma;
+
+	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
+	if (!prp_list)
+		return NULL;
+	if (pool == dev->prp_small_pool &&
+	    nprps == 32 &&
+	    ((prp_dma & 0xfff) == 0xf00)) {
+		__le64 *old_prp_list = prp_list;
+		dma_addr_t old_prp_dma = prp_dma;
+		prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
+		dma_pool_free(pool, old_prp_list, old_prp_dma);
+	}
+
+	*ret_dma = prp_dma;
+	return prp_list;
+}
+
 static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 		struct request *req, struct nvme_rw_command *cmnd)
 {
@@ -619,7 +640,7 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 		iod->nr_allocations = 1;
 	}
 
-	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
+	prp_list = quirk_dma_pool_alloc(dev, pool, &prp_dma, nprps);
 	if (!prp_list) {
 		iod->nr_allocations = -1;
 		return BLK_STS_RESOURCE;
