@@ -328,7 +328,7 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Dexi */
 	{ "Google", "Dexi", "0000:00:02.0", port_db_conns },
 	/* AMD Lilac */
-	{ "AMD", "Lilac", "0000:06:00.0", port_c_conns },
+	{ "AMD", "Lilac", "0000:03:00.0", port_c_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,
